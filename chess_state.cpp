@@ -22,42 +22,44 @@ ChessState::ChessState() {
             }
     fill_psquares();
 }
-void ChessInterface::move(string str) {
+minfo ChessInterface::not2minfo(string str) {
+    // NOT RELIABLE: because of putting king in check/moving king through check
+    // convert algebraic notation to move info
     // notation valid for 8x8 board or smaller
     smatch sm;
     if (str=="O-O") { // castle kingside
         if (active==WT)
-            execute_move(WKSQ,WKSQ+2,board[WKSQ/SZ][WKSQ%SZ],KCAST);
+            return ((minfo){WKSQ,WKSQ+2,board[WKSQ/SZ][WKSQ%SZ],KCAST});
         else
-            execute_move(BKSQ,BKSQ+2,board[BKSQ/SZ][BKSQ%SZ],KCAST);
+            return ((minfo){BKSQ,BKSQ+2,board[BKSQ/SZ][BKSQ%SZ],KCAST});
     }
     else if (str=="O-O-O") { // castle queenside
         if (active==WT)
-            execute_move(WKSQ,WKSQ-2,board[WKSQ/SZ][WKSQ%SZ],QCAST);
+            return ((minfo){WKSQ,WKSQ-2,board[WKSQ/SZ][WKSQ%SZ],QCAST});
         else
-            execute_move(BKSQ,BKSQ-2,board[BKSQ/SZ][BKSQ%SZ],QCAST);
+            return ((minfo){BKSQ,BKSQ-2,board[BKSQ/SZ][BKSQ%SZ],QCAST});
     }
     else if (regex_match(str,regex("^[abcdefgh][0-8][\\+#]?$"))) { // pawn moves forward (including moving two squares)
         uint8_t sq2 = get_sq(str.substr(0,2));
         uint8_t sq1 =  sq2+SZ*((active==WT) ? 1: -1 ); // one-square move
         if (!(board[sq1/SZ][sq1%SZ]==WP || board[sq1/SZ][sq1%SZ]==BP)) // no pawn on that square
             sq1 = sq2+SZ*((active==WT) ? 2: -2 ); // two-square move
-        execute_move(sq1,sq2,board[sq1/SZ][sq1%SZ],NCAST);
+        return ((minfo){sq1,sq2,board[sq1/SZ][sq1%SZ],NCAST});
     }
     else if (regex_match(str,regex("^[abcdefgh]x[abcdefgh][0-8][\\+#]?$"))) { // pawn captures (including en passant)
         uint8_t sq2 = get_sq(str.substr(2,2));
         uint8_t sq1 = sq2/SZ*SZ+get_sq(str.substr(0,1)+"1")%SZ+SZ*((active==WT) ? 1: -1 );
-        execute_move(sq1,sq2,board[sq1/SZ][sq1%SZ],NCAST);
+        return ((minfo){sq1,sq2,board[sq1/SZ][sq1%SZ],NCAST});
     }
     else if (regex_match(str,regex("^[abcdefgh][0-8]=[NBRQ][+#]?[\\+#]?$"))) { // pawn moves forward, promotes
         uint8_t sq2 = get_sq(str.substr(0,2));
         uint8_t sq1 = sq2+SZ*((active==WT)?1:-1); // FILL IN
-        execute_move(sq1,sq2,map_piece(active,str[3]),NCAST);
+        return ((minfo){sq1,sq2,map_piece(active,str[3]),NCAST});
     }
     else if (regex_match(str,regex("^[abcdefgh]x[abcdefgh][0-8]=[NBRQ][\\+#]?$"))) { // pawn captures, promotes
         uint8_t sq2 = get_sq(str.substr(2,2));
         uint8_t sq1 = get_sq(str.substr(0,1)+"1")%SZ+sq2/SZ*SZ;
-        execute_move(sq1,sq2,map_piece(active,str[5]),NCAST);
+        return ((minfo){sq1,sq2,map_piece(active,str[5]),NCAST});
     }
     // handle disambiguation (sometimes only need rank/file, sometimes need both)
     else if(regex_match(str,regex("^[NBKQ]x?[abcdefgh][0-8][\\+$]?$"))) { // piece moves, maybe captures, no ambiguity
@@ -67,7 +69,7 @@ void ChessInterface::move(string str) {
         uint8_t piece = map_piece(active,str[0]);
         uint8_t sq1 = attack_sq(sq2,piece,str[0]);
 
-        execute_move(sq1,sq2,piece,NCAST);
+        return ((minfo){sq1,sq2,piece,NCAST});
     }
     // rank disambiguation
         else if(regex_match(str,regex("^[NBKQ][0-8]x?[abcdefgh][0-8][\\+$]?$"))) { // piece moves, maybe captures, no ambiguity
@@ -78,7 +80,7 @@ void ChessInterface::move(string str) {
         regex_search(str,sm,regex("[0-8]"));
         uint8_t sq1 = attack_sq(sq2,piece,str[0],SZ-(str[1]-'0'),SZ);
         
-        execute_move(sq1,sq2,piece,NCAST);
+        return ((minfo){sq1,sq2,piece,NCAST});
     }
     // file disambiguation
     else if(regex_match(str,regex("^[NBKQ][abcdefgh]x?[abcdefgh][0-8][\\+$]?$"))) { // piece moves, maybe captures, no ambiguity
@@ -89,7 +91,7 @@ void ChessInterface::move(string str) {
         regex_search(str,sm,regex("[abcdefgh]"));
         uint8_t sq1 = attack_sq(sq2,piece,str[0],SZ,get_sq(sm[0].str()+"1")%SZ);
 
-        execute_move(sq1,sq2,piece,NCAST);
+        return ((minfo){sq1,sq2,piece,NCAST});
     }
     // square disambiguation
     else if(regex_match(str,regex("^[NBKQ][abcdefgh][0-8]x?[abcdefgh][0-8][\\+$]?$"))) { // piece moves, maybe captures, no ambiguity
@@ -101,8 +103,13 @@ void ChessInterface::move(string str) {
         regex_search(str,sm,regex("[abcdefgh][0-8]"));
         uint8_t sq2 = get_sq(sm[0]);
 
-        execute_move(sq1,sq2,piece,NCAST);
+        return ((minfo){sq1,sq2,piece,NCAST});
     }
+    // ERROR
+    return ((minfo){SZ*SZ,SZ*SZ,INV,NCAST});
+}
+void ChessInterface::move(string str) {
+    execute_move(not2minfo(str));
 }
 void ChessInterface::play_moves(vector<string> moves, bool verbose) {
     for(string str: moves) {
@@ -383,10 +390,15 @@ uint8_t ChessInterface::attack_sq(uint8_t sq2, uint8_t piece, char type,int drow
     }
     return SZ*SZ;
 }
-void ChessState::execute_move(uint8_t sq1, uint8_t sq2,uint8_t newp,uint8_t castle) {
+void ChessState::execute_move(minfo minfo) {
     // move piece from square 1 to square 2 (must accomodate en passant and castle)
     // the piece becomes newp on square 2 (e.g. promotion)
     // does not check if move is legal
+    uint8_t sq1 = minfo.sq1;
+    uint8_t sq2 = minfo.sq2;
+    uint8_t newp = minfo.newp;
+    uint8_t castle = minfo.castle;
+
     uint8_t& psq1 = board[sq1/SZ][sq1%SZ];
     uint8_t& psq2 = board[sq2/SZ][sq2%SZ];
     // reset hmove clock if capture or pawn move

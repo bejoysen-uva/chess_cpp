@@ -64,7 +64,7 @@ class ChessState{
         ChessState(); // constructor
         void print_board();
 
-        void execute_move(uint8_t sq1, uint8_t sq2,uint8_t newp,uint8_t castle);
+        void execute_move(minfo minfo);
         void all_moves(vector<minfo>& move_list);
         void all_moves(uint8_t sq, uint8_t piece, vector<minfo>& move_list);
 
@@ -106,4 +106,5 @@ class ChessInterface: public ChessState { // handles algebraic notation, can pla
     private:
         static int get_sq(string str);
         uint8_t attack_sq(uint8_t sq2, uint8_t piece, char type,int drow=SZ,int dcol = SZ);
+        minfo not2minfo(string str);
 };
