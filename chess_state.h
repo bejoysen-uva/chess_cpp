@@ -60,24 +60,28 @@ class ChessState{
         uint8_t enpassant; // en-passant square, out-of-bounds when not available
         uint32_t hmove;// half-moves since last capture or pawn advance
         uint32_t fmove; // full-move clock
-        set<uint8_t> psquares[INV]; // where are the pieces located?
 
         ChessState(); // constructor
-        void move(string str);
-        void play_moves(vector<string> moves, bool verbose=true);
         void print_board();
+
+        void execute_move(uint8_t sq1, uint8_t sq2,uint8_t newp,uint8_t castle);
+        void all_moves(vector<minfo>& move_list);
+        void all_moves(uint8_t sq, uint8_t piece, vector<minfo>& move_list);
+
+        static uint8_t map_piece(bool active,char type);
+        static char cols[SZ];
+        static char pchars[INV];
+        static string promotions;
+        set<uint8_t> psquares[INV]; // where are the pieces located?
+        
     private:
         static vector<pair<int8_t,int8_t> > knight_dirs;
         static vector<pair<int8_t,int8_t> > king_dirs;
         static vector<pair<int8_t,int8_t> > bishop_dirs;
         static vector<pair<int8_t,int8_t> > rook_dirs;
         static vector<pair<int8_t,int8_t> > queen_dirs;
-        static string promotions;
-        static char pchars[INV];
-        static char cols[SZ];
 
-        static int get_sq(string str);
-        static uint8_t map_piece(bool active,char piece);
+        void fill_psquares();
 
         void pawn_moves(uint8_t sq, vector<minfo>& move_list);
         void limited_piece_moves(uint8_t sq, vector<minfo>& move_list, const vector<pair<int8_t,int8_t> >& dirs);
@@ -89,16 +93,17 @@ class ChessState{
         void bishop_moves(uint8_t sq,vector<minfo>& move_list);
         void rook_moves(uint8_t sq,vector<minfo>& move_list);
         void queen_moves(uint8_t sq,vector<minfo>& move_list);
-        void all_moves(uint8_t sq, uint8_t piece, vector<minfo>& move_list);
-        void all_moves(vector<minfo>& move_list);
-        void execute_move(uint8_t sq1, uint8_t sq2,uint8_t newp,uint8_t castle);
+        
+};
 
-        void fill_psquares();
-
-        uint8_t knight_sq(uint8_t sq2, uint8_t piece,int drow=SZ,int dcol = SZ);
-        uint8_t bishop_sq(uint8_t sq2, uint8_t piece, int dr=SZ, int dc=SZ);
-        uint8_t rook_sq(uint8_t sq2, uint8_t piece, int dr=SZ, int dc=SZ);
-        uint8_t queen_sq(uint8_t sq2, uint8_t piece, int dr=SZ, int dc=SZ);
-        uint8_t king_sq(uint8_t sq2, uint8_t piece, int dr=SZ, int dc=SZ);
+class ChessInterface: public ChessState { // handles algebraic notation, can play from move list, handle human input
+    public:
+        ChessState state;
+        void move(string str);
+        void play_moves(vector<string> moves, bool verbose=true);
+        bool one_play_input(int8_t verbose=2); // make the next move according to human input, return false if human quit
+        void play_input(int8_t verbose=2); // keep moving according to input until "q"
+    private:
+        static int get_sq(string str);
         uint8_t attack_sq(uint8_t sq2, uint8_t piece, char type,int drow=SZ,int dcol = SZ);
 };

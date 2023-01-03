@@ -22,7 +22,7 @@ ChessState::ChessState() {
             }
     fill_psquares();
 }
-void ChessState::move(string str) {
+void ChessInterface::move(string str) {
     // notation valid for 8x8 board or smaller
     smatch sm;
     if (str=="O-O") { // castle kingside
@@ -104,7 +104,7 @@ void ChessState::move(string str) {
         execute_move(sq1,sq2,piece,NCAST);
     }
 }
-void ChessState::play_moves(vector<string> moves, bool verbose) {
+void ChessInterface::play_moves(vector<string> moves, bool verbose) {
     for(string str: moves) {
         if ((active==WT)&&verbose)
             cout << fmove << endl;
@@ -132,16 +132,16 @@ void ChessState::print_board() {
         cout << endl;
     }
 }
-int ChessState::get_sq(string str) {
+int ChessInterface::get_sq(string str) {
     for(int i=0;i<SZ;i++) { // column
         if(str[0]==cols[i])
             return (SZ-(str[1]-'0'))*SZ+i;
     }
     return SZ*SZ; // mistake, throw error
 }
-uint8_t ChessState::map_piece(bool active,char piece) { // ex: WT,'Q' -> WQ
+uint8_t ChessState::map_piece(bool active,char type) { // ex: WT,'Q' -> WQ
     if(active==WT) {
-        switch(piece) {
+        switch(type) {
             case 'N':
                 return WN;
             case 'B':
@@ -154,7 +154,7 @@ uint8_t ChessState::map_piece(bool active,char piece) { // ex: WT,'Q' -> WQ
                 return WK;
         }
     } else {
-        switch(piece) {
+        switch(type) {
             case 'N':
                 return BN;
             case 'B':
@@ -360,96 +360,7 @@ void ChessState::fill_psquares() {
         }
     }
 }
-uint8_t ChessState::knight_sq(uint8_t sq2, uint8_t piece,int drow,int dcol) {
-    for(uint8_t sq: psquares[piece]) {
-        uint8_t rdiff = abs(sq2/SZ-sq/SZ);
-        uint8_t cdiff = abs(sq2%SZ-sq%SZ);
-        // a knight on sq must be able to attack sq2
-        // must match disambiguation condition (if there is one)
-        if((((rdiff==2)&&(cdiff==1))||((rdiff==1)&&(cdiff==2)))&&(((drow==SZ)||(drow==sq/SZ))&&((dcol==SZ)||(dcol==sq%SZ)))){
-            return sq;
-        }
-    }
-    return SZ*SZ; // error
-}
-uint8_t ChessState::bishop_sq(uint8_t sq2, uint8_t piece, int dr, int dc) {
-    for(uint8_t sq: psquares[piece]) {
-        // skip if a disambiguation condition is violated
-        if(((dr!=SZ)&&(dr!=sq/SZ))||((dc!=SZ)&&(dc!=sq%SZ)))
-            continue; 
-        
-        int8_t rdiff = sq2/SZ-sq/SZ; // differences are signed (must use int8_t)
-        int8_t cdiff = sq2%SZ-sq%SZ;
-
-        // skip if not on the same diagonal
-        if (abs(rdiff)!=abs(cdiff))
-            continue;
-        
-        // intermediate squares must be empty
-        int8_t rdir = (rdiff<0) ? -1:1;
-        int8_t cdir = (cdiff<0) ? -1:1;
-        bool valid = true; // true if diagonal empty; 
-        for(uint8_t inc=1;inc<abs(rdiff);inc++) { 
-            if(board[sq/SZ+inc*rdir][sq%SZ+inc*cdir]!=EMP) {
-                valid = false;
-                break;
-            }
-        }
-        if(valid)
-            return sq;
-    }
-    return SZ*SZ; // error
-}
-uint8_t ChessState::rook_sq(uint8_t sq2, uint8_t piece, int dr, int dc) {
-    uint8_t r;
-    uint8_t c;
-    uint8_t r2 = sq2/SZ;
-    uint8_t c2 = sq2%SZ;
-    bool valid;
-    for(uint8_t sq: psquares[piece]) {
-        // skip if a disambiguation condition is violated
-        if(((dr!=SZ)&&(dr!=r))||((dc!=SZ)&&(dc!=c)))
-            continue;
-        
-        r = sq/SZ;
-        c = sq%SZ;
-        valid = true;
-        // same row, intermediate squares must be empty
-        if(r==r2) {
-            for(uint8_t c3=min(c,c2)+1;c3<max(c,c2);c3++) {
-                if(board[r][c3]!=EMP) {
-                    valid = false;
-                    break;
-                }
-            }
-            if(valid)
-                return sq;
-        } // same column, intermediate squares must be empty
-        else if (c==c2) {
-            for(uint8_t r3=min(r,r2)+1;r3<max(r,r2);r3++) {
-                if(board[r3][c]!=EMP) {
-                    valid = false;
-                    break;
-                }
-            }
-            if(valid)
-                return sq;
-        }
-    }
-    return SZ*SZ;
-}
-uint8_t ChessState::queen_sq(uint8_t sq2, uint8_t piece, int dr, int dc) {
-    uint8_t rsq = rook_sq(sq2,piece,dr,dc);
-    if(rsq!=SZ*SZ) return rsq; // queen moved like a rook
-    return bishop_sq(sq2,piece,dr,dc); // otherwise queen moves like a bishop
-}
-uint8_t ChessState::king_sq(uint8_t sq2, uint8_t piece, int dr, int dc) {
-    for(uint8_t sq: psquares[piece]) {
-        return sq; // only one king of a given color
-    }
-    return SZ*SZ;
-}
-uint8_t ChessState::attack_sq(uint8_t sq2, uint8_t piece, char type,int drow,int dcol) {
+uint8_t ChessInterface::attack_sq(uint8_t sq2, uint8_t piece, char type,int drow,int dcol) {
     // THIS METHOD IS WRONG: disambiguation does not account for the fact that a piece may not be able to move if it puts the king in check
 
     // sq2: square attacked by the piece
@@ -459,20 +370,18 @@ uint8_t ChessState::attack_sq(uint8_t sq2, uint8_t piece, char type,int drow,int
     // dcol: disambiguation col (piece must be on this col if col<SZ)
     // (drow==SZ) || (dcol==SZ) assumed true, assume sq1 exists
     // return sq1 on which piece is located, that is attacking sq2
-    switch(type) {
-        case 'N':
-            return knight_sq(sq2,piece,drow,dcol);
-        case 'B':
-            return bishop_sq(sq2,piece,drow,dcol);
-        case 'R':
-            return rook_sq(sq2,piece,drow,dcol);
-        case 'Q':
-            return queen_sq(sq2,piece,drow,dcol);
-        case 'K':
-            return king_sq(sq2,piece,drow,dcol);
-        default:
-            return SZ*SZ;
+    for(uint8_t sq: psquares[piece]) {
+        // sq must meet disambiguation condition (if exists)
+        if(((drow!=SZ)&&(drow!=sq/SZ)) ||((dcol!=SZ)&&(dcol!=sq%SZ)))
+            continue;
+        vector<minfo> sqmoves;
+        all_moves(sq,piece,sqmoves);
+        for(minfo minfo: sqmoves) {
+            if(minfo.sq2==sq2)
+                return sq;
+        }
     }
+    return SZ*SZ;
 }
 void ChessState::execute_move(uint8_t sq1, uint8_t sq2,uint8_t newp,uint8_t castle) {
     // move piece from square 1 to square 2 (must accomodate en passant and castle)
@@ -590,3 +499,38 @@ char ChessState::pchars[INV] = {[EMP]=' ',
                   [BQ]='q',
                   [BK]='k'}; // piece characters
 char ChessState::cols[SZ] = {'a','b','c','d','e','f','g','h'};
+
+
+bool ChessInterface::one_play_input(int8_t verbose) {
+    // verbose=0: no feedback
+    // verbose=1: display board after each move
+    // verbose=2: display possible moves for player
+    vector<minfo> mlist;
+    all_moves(mlist);
+    if ((active==WT)&&verbose)
+        cout << fmove << endl;
+    // NEED code for notation->minfo to check whether user-input move is valid
+    if(verbose==2) {
+        cout << "All moves: ";
+        cout << endl;
+    }
+    string anot;
+    cout << "Move: ";
+    cin >> anot;
+    cout << endl;
+    
+    if(anot=="q")
+        return false;
+    move(anot);
+    if(verbose) {
+        print_board();
+        cout << endl;
+    }
+    return true;
+}
+void ChessInterface::play_input(int8_t verbose) {
+    // verbose=0: no feedback
+    // verbose=1: display board after each move
+    // verbose=2: display possible moves for player
+    while(one_play_input(verbose)) {}
+}
