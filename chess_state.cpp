@@ -1,4 +1,5 @@
 #include "chess_state.h"
+#include <sstream>
 
 ChessState::ChessState() {
     uint8_t dboard[8][8] = {
@@ -26,6 +27,11 @@ minfo ChessInterface::not2minfo(string str) {
     // NOT RELIABLE: because of putting king in check/moving king through check
     // convert algebraic notation to move info
     // notation valid for 8x8 board or smaller
+
+    // We don't need to know whether the move causes check/checkmate to fill in minfo
+    if((str[str.length()-1]=='+')||(str[str.length()-1]=='#')) 
+        str = str.substr(0,str.length()-1);
+    
     smatch sm;
     if (str=="O-O") { // castle kingside
         if (active==WT)
@@ -39,30 +45,30 @@ minfo ChessInterface::not2minfo(string str) {
         else
             return ((minfo){BKSQ,BKSQ-2,board[BKSQ/SZ][BKSQ%SZ],QCAST});
     }
-    else if (regex_match(str,regex("^[abcdefgh][0-8][\\+#]?$"))) { // pawn moves forward (including moving two squares)
+    else if (regex_match(str,regex("^[abcdefgh][0-8]$"))) { // pawn moves forward (including moving two squares)
         uint8_t sq2 = get_sq(str.substr(0,2));
         uint8_t sq1 =  sq2+SZ*((active==WT) ? 1: -1 ); // one-square move
         if (!(board[sq1/SZ][sq1%SZ]==WP || board[sq1/SZ][sq1%SZ]==BP)) // no pawn on that square
             sq1 = sq2+SZ*((active==WT) ? 2: -2 ); // two-square move
         return ((minfo){sq1,sq2,board[sq1/SZ][sq1%SZ],NCAST});
     }
-    else if (regex_match(str,regex("^[abcdefgh]x[abcdefgh][0-8][\\+#]?$"))) { // pawn captures (including en passant)
+    else if (regex_match(str,regex("^[abcdefgh]x[abcdefgh][0-8]$"))) { // pawn captures (including en passant)
         uint8_t sq2 = get_sq(str.substr(2,2));
         uint8_t sq1 = sq2/SZ*SZ+get_sq(str.substr(0,1)+"1")%SZ+SZ*((active==WT) ? 1: -1 );
         return ((minfo){sq1,sq2,board[sq1/SZ][sq1%SZ],NCAST});
     }
-    else if (regex_match(str,regex("^[abcdefgh][0-8]=[NBRQ][+#]?[\\+#]?$"))) { // pawn moves forward, promotes
+    else if (regex_match(str,regex("^[abcdefgh][0-8]=[NBRQ]$"))) { // pawn moves forward, promotes
         uint8_t sq2 = get_sq(str.substr(0,2));
         uint8_t sq1 = sq2+SZ*((active==WT)?1:-1); // FILL IN
         return ((minfo){sq1,sq2,map_piece(active,str[3]),NCAST});
     }
-    else if (regex_match(str,regex("^[abcdefgh]x[abcdefgh][0-8]=[NBRQ][\\+#]?$"))) { // pawn captures, promotes
+    else if (regex_match(str,regex("^[abcdefgh]x[abcdefgh][0-8]=[NBRQ]$"))) { // pawn captures, promotes
         uint8_t sq2 = get_sq(str.substr(2,2));
         uint8_t sq1 = get_sq(str.substr(0,1)+"1")%SZ+sq2/SZ*SZ;
         return ((minfo){sq1,sq2,map_piece(active,str[5]),NCAST});
     }
     // handle disambiguation (sometimes only need rank/file, sometimes need both)
-    else if(regex_match(str,regex("^[NBKQ]x?[abcdefgh][0-8][\\+$]?$"))) { // piece moves, maybe captures, no ambiguity
+    else if(regex_match(str,regex("^[NBKQ]x?[abcdefgh][0-8]$"))) { // piece moves, maybe captures, no ambiguity
         regex_search(str,sm,regex("[abcdefgh][0-8]"));
         uint8_t sq2 = get_sq(sm[0]);
 
@@ -72,7 +78,7 @@ minfo ChessInterface::not2minfo(string str) {
         return ((minfo){sq1,sq2,piece,NCAST});
     }
     // rank disambiguation
-        else if(regex_match(str,regex("^[NBKQ][0-8]x?[abcdefgh][0-8][\\+$]?$"))) { // piece moves, maybe captures, no ambiguity
+        else if(regex_match(str,regex("^[NBKQ][0-8]x?[abcdefgh][0-8]$"))) { // piece moves, maybe captures, no ambiguity
         regex_search(str,sm,regex("[abcdefgh][0-8]"));
         uint8_t sq2 = get_sq(sm[0]);
 
@@ -83,7 +89,7 @@ minfo ChessInterface::not2minfo(string str) {
         return ((minfo){sq1,sq2,piece,NCAST});
     }
     // file disambiguation
-    else if(regex_match(str,regex("^[NBKQ][abcdefgh]x?[abcdefgh][0-8][\\+$]?$"))) { // piece moves, maybe captures, no ambiguity
+    else if(regex_match(str,regex("^[NBKQ][abcdefgh]x?[abcdefgh][0-8]$"))) { // piece moves, maybe captures, no ambiguity
         regex_search(str,sm,regex("[abcdefgh][0-8]"));
         uint8_t sq2 = get_sq(sm[0]);
 
@@ -94,7 +100,7 @@ minfo ChessInterface::not2minfo(string str) {
         return ((minfo){sq1,sq2,piece,NCAST});
     }
     // square disambiguation
-    else if(regex_match(str,regex("^[NBKQ][abcdefgh][0-8]x?[abcdefgh][0-8][\\+$]?$"))) { // piece moves, maybe captures, no ambiguity
+    else if(regex_match(str,regex("^[NBKQ][abcdefgh][0-8]x?[abcdefgh][0-8]$"))) { // piece moves, maybe captures, no ambiguity
         regex_search(str,sm,regex("[abcdefgh][0-8]"));
         uint8_t sq1 = get_sq(sm[0]);
         uint8_t piece = map_piece(active,str[0]);
@@ -149,6 +155,8 @@ int ChessInterface::get_sq(string str) {
 uint8_t ChessState::map_piece(bool active,char type) { // ex: WT,'Q' -> WQ
     if(active==WT) {
         switch(type) {
+            case 'P':
+                return WP;
             case 'N':
                 return WN;
             case 'B':
@@ -162,6 +170,8 @@ uint8_t ChessState::map_piece(bool active,char type) { // ex: WT,'Q' -> WQ
         }
     } else {
         switch(type) {
+            case 'P':
+                return BP;
             case 'N':
                 return BN;
             case 'B':
@@ -176,6 +186,30 @@ uint8_t ChessState::map_piece(bool active,char type) { // ex: WT,'Q' -> WQ
         }
     }
     return EMP;
+}
+char ChessState::map_type(uint8_t piece) {
+    switch(piece) {
+        case WP:
+        case BP:
+            return 'P';
+        case WN:
+        case BN:
+            return 'N';
+        case WB:
+        case BB:
+            return 'B';
+        case WR:
+        case BR:
+            return 'R';
+        case WQ:
+        case BQ:
+            return 'Q';
+        case WK:
+        case BK:
+            return 'K';
+        default:
+            return 0; // ERROR
+    }
 }
 void ChessState::pawn_moves(uint8_t sq, vector<minfo>& move_list) {
     uint8_t r = sq/SZ;
@@ -323,24 +357,19 @@ void ChessState::queen_moves(uint8_t sq,vector<minfo>& move_list) {
 }
 void ChessState::all_moves(uint8_t sq, uint8_t piece, vector<minfo>& move_list) {
     // does not check if a move puts king in check
-    switch(piece) {
-        case WP:
-        case BP:
+    char type = map_type(piece);
+    switch(type) {
+        case 'P':
             return pawn_moves(sq,move_list);
-        case WN:
-        case BN:
+        case 'N':
             return knight_moves(sq,move_list);
-        case WR:
-        case BR:
+        case 'R':
             return rook_moves(sq,move_list);
-        case WB:
-        case BB:
+        case 'B':
             return bishop_moves(sq,move_list);
-        case WQ:
-        case BQ:
+        case 'Q':
             return queen_moves(sq,move_list);
-        case WK:
-        case BK:
+        case 'K':
             return king_moves(sq,move_list);
     }
 }
@@ -517,13 +546,19 @@ bool ChessInterface::one_play_input(int8_t verbose) {
     // verbose=0: no feedback
     // verbose=1: display board after each move
     // verbose=2: display possible moves for player
-    vector<minfo> mlist;
-    all_moves(mlist);
     if ((active==WT)&&verbose)
         cout << fmove << endl;
+    if(verbose) {
+        print_board();
+        cout << endl;
+    }
     // NEED code for notation->minfo to check whether user-input move is valid
     if(verbose==2) {
-        cout << "All moves: ";
+        vector<string> nlist = all_notes();
+        cout << "All moves: [";
+        for(int idx=0;idx<nlist.size();idx++) {
+            cout << nlist[idx] << ((idx==nlist.size()-1)?']':',');
+        }
         cout << endl;
     }
     string anot;
@@ -534,10 +569,6 @@ bool ChessInterface::one_play_input(int8_t verbose) {
     if(anot=="q")
         return false;
     move(anot);
-    if(verbose) {
-        print_board();
-        cout << endl;
-    }
     return true;
 }
 void ChessInterface::play_input(int8_t verbose) {
@@ -545,4 +576,80 @@ void ChessInterface::play_input(int8_t verbose) {
     // verbose=1: display board after each move
     // verbose=2: display possible moves for player
     while(one_play_input(verbose)) {}
+}
+
+string ChessInterface::minfo2not(minfo minf) {
+    // INVALID: does not do + or # at end of notation.
+
+    // castling notation is easy
+    if((minf.castle)==KCAST)
+        return "O-O";
+    if((minf.castle)==QCAST)
+        return "O-O-O";
+
+    uint8_t r1 = minf.sq1/SZ;
+    uint8_t c1 = minf.sq1%SZ;
+    uint8_t r2 = minf.sq2/SZ;
+    uint8_t c2 = minf.sq2%SZ;
+    stringstream note;
+    
+    // pawn move
+
+    if((board[r1][c1]==WP)||(board[r1][c1]==BP)) {
+        if(c1!=c2) // pawn captures something
+            note << cols[c1] << 'x';
+        note << cols[c2] << int(SZ-r2); // destination square
+
+        if(minf.newp!=board[r1][c1]) { // promotion
+            note << "=" << map_type(minf.newp);
+        }
+        return note.str();
+    }
+    // any other piece moved
+    note << map_type(minf.newp);
+    // disambiguation
+    bool uniq = true;
+    bool runiq = true;
+    bool cuniq = true;
+    auto mlist = vector<minfo>();
+    for(uint8_t osq: psquares[minf.newp]) {
+        if(osq==minf.sq1)
+            continue;
+        all_moves(osq,minf.newp,mlist);
+        for(minfo minf2: mlist) {
+            if(minf.sq2==minf2.sq2) {
+                uniq = false; // an equivalent piece on a different square can reach sq2
+                if(minf2.sq1/SZ==r2) // if row isn't unique
+                    runiq = false;
+                if(minf2.sq2%SZ==c2) // if col isn't unique
+                    cuniq = false;
+            }
+        }
+        mlist.clear();
+    }
+    if(!uniq) { // need to disambiguate
+        if(cuniq) // use unique column
+            note << cols[c1];
+        else if(runiq) // use unique row
+            note << int(SZ-r1);
+        else // must use full square
+            note << cols[c1] << int(SZ-r1);
+    }
+    // capture
+    if(board[r2][c2]!=EMP) {
+        note << "x";
+    }
+    // destination square
+    note << cols[c2] << int(SZ-r2);
+    return note.str();
+}
+
+vector<string> ChessInterface::all_notes() {
+    vector<minfo> mlist;
+    vector<string> slist;
+    all_moves(mlist);
+    for(minfo mi: mlist) {
+        slist.push_back(minfo2not(mi));
+    }
+    return slist;
 }
