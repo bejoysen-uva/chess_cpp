@@ -630,7 +630,7 @@ class ChessState{
         }
 };
 // static initialization
-auto ChessState::knight_dirs = {pair<int8_t,int8_t>(-2,-1),
+vector<pair<int8_t,int8_t>> ChessState::knight_dirs = {pair<int8_t,int8_t>(-2,-1),
                                 pair<int8_t,int8_t>(-2,1),
                                 pair<int8_t,int8_t>(2,-1),
                                 pair<int8_t,int8_t>(2,1),
@@ -638,7 +638,7 @@ auto ChessState::knight_dirs = {pair<int8_t,int8_t>(-2,-1),
                                 pair<int8_t,int8_t>(-1,2),
                                 pair<int8_t,int8_t>(1,-2),
                                 pair<int8_t,int8_t>(1,2)};
-auto ChessState::king_dirs = {pair<int8_t,int8_t>(-1,-1),
+vector<pair<int8_t,int8_t>> ChessState::king_dirs = {pair<int8_t,int8_t>(-1,-1),
                                 pair<int8_t,int8_t>(-1,0),
                                 pair<int8_t,int8_t>(-1,1),
                                 pair<int8_t,int8_t>(0,-1),
@@ -646,7 +646,7 @@ auto ChessState::king_dirs = {pair<int8_t,int8_t>(-1,-1),
                                 pair<int8_t,int8_t>(1,-1),
                                 pair<int8_t,int8_t>(1,0),
                                 pair<int8_t,int8_t>(1,1)};
-auto ChessState::queen_dirs = {pair<int8_t,int8_t>(-1,-1),
+vector<pair<int8_t,int8_t>> ChessState::queen_dirs = {pair<int8_t,int8_t>(-1,-1),
                                 pair<int8_t,int8_t>(-1,0),
                                 pair<int8_t,int8_t>(-1,1),
                                 pair<int8_t,int8_t>(0,-1),
@@ -654,15 +654,15 @@ auto ChessState::queen_dirs = {pair<int8_t,int8_t>(-1,-1),
                                 pair<int8_t,int8_t>(1,-1),
                                 pair<int8_t,int8_t>(1,0),
                                 pair<int8_t,int8_t>(1,1)};
-auto ChessState::bishop_dirs = {pair<int8_t,int8_t>(-1,-1),
+vector<pair<int8_t,int8_t>> ChessState::bishop_dirs = {pair<int8_t,int8_t>(-1,-1),
                                 pair<int8_t,int8_t>(-1,1),
                                 pair<int8_t,int8_t>(1,-1),
                                 pair<int8_t,int8_t>(1,1)};
-auto ChessState::rook_dirs = {pair<int8_t,int8_t>(-1,0),
+vector<pair<int8_t,int8_t>> ChessState::rook_dirs = {pair<int8_t,int8_t>(-1,0),
                                 pair<int8_t,int8_t>(1,0),
                                 pair<int8_t,int8_t>(0,-1),
                                 pair<int8_t,int8_t>(0,1)};
-auto ChessState::promotions = "NBRQ";
+string ChessState::promotions = "NBRQ";
                                 
 int main() {
     ChessState cstate;
