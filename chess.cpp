@@ -11,16 +11,18 @@
 #define WB 3
 #define WR 4
 #define WQ 5
-#define WK 6
+#define WK 6 // king is max of white pieces
+#define IS_WHITE(piece) ((piece>EMP)&&(piece<BP))
 
-#define BP 7 // black pieces
-#define BN 8
-#define BB 9
-#define BR 10
-#define BQ 11
-#define BK 12
+#define BP (WP+WK) // black pieces (greater than white pieces)
+#define BN (WN+WK)
+#define BB (WB+WK)
+#define BR (WR+WK)
+#define BQ (WQ+WK)
+#define BK (WK+WK)
+#define IS_BLACK(piece) ((piece>WK)&&(piece<INV))
 
-#define INV 13 // invalid piece (out-of-bounds access, for example), INV must be greater than the other piece values and EMP
+#define INV (BK+1) // invalid piece (out-of-bounds access, for example), INV must be greater than the other piece values and EMP
 #define ELEM(mat,i,j) (((i<0) || (i>=SZ) || (j<0) || (j>=SZ)) ? INV : mat[i][j])
 
 #define WT true // white's turn
@@ -40,6 +42,13 @@
 #define BKSQ 4 // black king starting square
 
 using namespace std;
+struct minfo { // info for a chess move
+    uint8_t sq1;
+    uint8_t sq2;
+    uint8_t newp;
+    uint8_t castle;
+};
+typedef struct minfo minfo;
 
 char pchars[INV] = {[EMP]=' ',
                   [WP]='P',
@@ -95,7 +104,7 @@ uint8_t map_piece(bool active,char piece) { // ex: WT,'Q' -> WQ
     }
     return EMP;
 }
-class state{
+class ChessState{
     public:
 
         uint8_t board[SZ][SZ];
@@ -106,7 +115,7 @@ class state{
         uint32_t fmove; // full-move clock
         set<uint8_t> psquares[INV]; // where are the pieces located?
 
-        state() {
+        ChessState() {
             uint8_t dboard[8][8] = {
                     {BR,BN,BB,BQ,BK,BB,BN,BR},
                     {BP,BP,BP,BP,BP,BP,BP,BP},
@@ -209,9 +218,6 @@ class state{
 
                 execute_move(sq1,sq2,piece,NCAST);
             }
-
-
-
         }
 
         void play_moves(vector<string> moves, bool verbose=true) {
@@ -244,6 +250,192 @@ class state{
         }
 
     private:
+        static vector<pair<int8_t,int8_t>> knight_dirs;
+        static vector<pair<int8_t,int8_t>> king_dirs;
+        static vector<pair<int8_t,int8_t>> bishop_dirs;
+        static vector<pair<int8_t,int8_t>> rook_dirs;
+        static vector<pair<int8_t,int8_t>> queen_dirs;
+        static string promotions;
+        void pawn_moves(uint8_t sq, vector<minfo>& move_list) {
+            uint8_t r = sq/SZ;
+            uint8_t c = sq%SZ;
+            minfo minfo;
+            minfo.sq1 = sq;
+            minfo.newp = board[r][c];
+            minfo.castle = NCAST;
+
+            int8_t fdir = (active==WT)? -1: 1; // row direction of forward movement for pawn
+            if(board[r+fdir][c]==EMP) { // can move forward
+                minfo.sq2 = sq+fdir*SZ;
+                if(((r+fdir)==0)||((r+fdir)==SZ-1)) { // must promote on last row
+                    for(char ch: promotions) {
+                        minfo.newp = map_piece(active, ch);
+                        move_list.push_back(minfo);
+                    }
+                } else {
+                    move_list.push_back(minfo); // move forward 1 square
+                    // move two squares if pawn is on its first row and the two squares are empty
+                    if((((r-fdir)==0)||((r-fdir)==SZ-1))&&(board[r+2*fdir][c]==EMP)) {
+                        minfo.sq2 = sq+2*fdir*SZ;
+                        move_list.push_back(minfo);
+                    }
+                }
+            }
+            for(int8_t cdir=1;cdir>=-1;cdir-=2) { // capture left or right
+                minfo.sq2 = sq+fdir*SZ+cdir;
+                uint8_t oldp = ELEM(board,r+fdir,c+cdir);
+                // en passant
+                if(minfo.sq2==enpassant) {
+                    move_list.push_back(minfo);
+                }
+                // can capture opposite color piece
+                else if(((active==WT)&&(IS_BLACK(oldp)))||((active==BT)&&(IS_WHITE(oldp)))) {
+                    if(((r+fdir)==0)||((r+fdir)==SZ-1)) {  // must promote on last row
+                        for(char ch: promotions) {
+                            minfo.newp = map_piece(active, ch);
+                            move_list.push_back(minfo);
+                        }
+                    } else {
+                        move_list.push_back(minfo);
+                    }
+                }
+
+            }
+        }
+        void limited_piece_moves(uint8_t sq, vector<minfo>& move_list, const vector<pair<int8_t,int8_t>>& dirs) {
+            uint8_t r = sq/SZ;
+            uint8_t c = sq%SZ;
+            uint8_t r2;
+            uint8_t c2;
+            uint8_t pdest;
+            minfo minfo;
+            minfo.sq1 = sq;
+            minfo.newp = board[r][c];
+            minfo.castle=NCAST;
+            for(auto dpair: dirs) {
+                r2 = r+dpair.first;
+                c2 = c+dpair.second;
+                pdest = ELEM(board,r2,c2);
+                // invalid move iff out-of-bounds or captures your own piece
+                if((pdest==INV)||((active==WT)&&IS_WHITE(pdest))||((active==BT)&&IS_BLACK(pdest)))
+                    continue;
+                
+                minfo.sq2=r2*SZ+c2;
+                move_list.push_back(minfo);  
+            }
+        }
+        void unlimited_piece_moves(uint8_t sq, vector<minfo>& move_list, const vector<pair<int8_t,int8_t>>& dirs) {
+            uint8_t r = sq/SZ;
+            uint8_t c = sq%SZ;
+            uint8_t r2;
+            uint8_t c2;
+            uint8_t pdest;
+
+            minfo minfo;
+            minfo.sq1 = sq;
+            minfo.newp=board[r][c];
+            minfo.castle=NCAST;
+
+            for(auto dpair: dirs) {
+                r2 = r+dpair.first; // first square on direction
+                c2 = c+dpair.second;
+                pdest = ELEM(board,r2,c2);
+                while(pdest==EMP) {
+                    minfo.sq2 = r2*SZ+c2;
+                    move_list.push_back(minfo);
+                    r2+=dpair.first; // continue on direction
+                    c2+=dpair.second;
+                    pdest = ELEM(board,r2,c2);
+                }
+                if (((active==WT)&&IS_BLACK(pdest))||((active==BT)&&IS_WHITE(pdest))) {
+                    minfo.sq2 = r2*SZ+c2;
+                    move_list.push_back(minfo);
+                }
+            }
+        }
+        void knight_moves(uint8_t sq,vector<minfo>& move_list) {
+            limited_piece_moves(sq,move_list,knight_dirs);
+        }
+        void qcast_moves(uint8_t sq, vector<minfo>& move_list) {
+            // does not check if castling puts king through/in check
+            if(!(((active==WT)&&((cast>>WQCAST)%2))||((active==BT)&&((cast>>BQCAST)%2))))
+                return;
+            uint8_t r = sq/SZ;
+            uint8_t c = sq%SZ;
+            minfo minfo;
+            minfo.sq1 = sq;
+            minfo.sq2 = sq-2;
+            minfo.newp = board[r][c];
+            minfo.castle=QCAST;
+
+            if((board[r][c-1]==EMP)&&(board[r][c-2]==EMP)&&(board[r][c-3]==EMP))
+                move_list.push_back(minfo);
+        }
+        void kcast_moves(uint8_t sq, vector<minfo>& move_list) {
+            // does not check if castling puts king through/in check
+            if(!(((active==WT)&&((cast>>WQCAST)%2))||((active==BT)&&((cast>>BQCAST)%2))))
+                return;
+            uint8_t r = sq/SZ;
+            uint8_t c = sq%SZ;
+            minfo minfo;
+            minfo.sq1 = sq;
+            minfo.sq2 = sq+2;
+            minfo.newp = board[r][c];
+            minfo.castle=KCAST;
+
+            if((board[r][c+1]==EMP)&&(board[r][c+2]==EMP))
+                move_list.push_back(minfo);
+        }
+        void king_moves(uint8_t sq,vector<minfo>& move_list) {
+            limited_piece_moves(sq,move_list,king_dirs);
+            qcast_moves(sq,move_list);
+            kcast_moves(sq,move_list);
+        }
+        void bishop_moves(uint8_t sq,vector<minfo>& move_list) {
+            unlimited_piece_moves(sq,move_list,bishop_dirs);
+        }
+        void rook_moves(uint8_t sq,vector<minfo>& move_list) {
+            unlimited_piece_moves(sq,move_list,rook_dirs);
+        }
+        void queen_moves(uint8_t sq,vector<minfo>& move_list) {
+            unlimited_piece_moves(sq,move_list,queen_dirs);
+        }
+        void all_moves(uint8_t sq, uint8_t piece, vector<minfo>& move_list) {
+            // does not check if a move puts king in check
+            switch(piece) {
+                case WP:
+                case BP:
+                    return pawn_moves(sq,move_list);
+                case WN:
+                case BN:
+                    return knight_moves(sq,move_list);
+                case WR:
+                case BR:
+                    return rook_moves(sq,move_list);
+                case WB:
+                case BB:
+                    return bishop_moves(sq,move_list);
+                case WQ:
+                case BQ:
+                    return queen_moves(sq,move_list);
+                case WK:
+                case BK:
+                    return king_moves(sq,move_list);
+            }
+        }
+
+        void all_moves(vector<minfo>& move_list) {
+            // does not check if a move puts king in check or whether castle puts king through check
+            // fills in move_list with all possible moves
+            uint8_t pstart = (active==WT) ? (EMP+1) : (WK+1);
+            uint8_t pend = pstart+WK; // not-inclusive
+            for(uint8_t p=pstart;p<pend;p++) {
+                for(uint8_t sq: psquares[p]) {
+                    all_moves(sq,board[sq/SZ][sq%SZ],move_list);
+                }
+            }
+        }
+
         void fill_psquares() {
             // fill in psquares
             for(int r=0;r<SZ;r++) {
@@ -344,6 +536,8 @@ class state{
             return SZ*SZ;
         }
         uint8_t attack_sq(uint8_t sq2, uint8_t piece, char type,int drow=SZ,int dcol = SZ) {
+            // THIS METHOD IS WRONG: disambiguation does not account for the fact that a piece may not be able to move if it puts the king in check
+
             // sq2: square attacked by the piece
             // piece, example: WN
             // type: 'N'
@@ -435,8 +629,43 @@ class state{
             enpassant = next_enpassant;
         }
 };
+// static initialization
+auto ChessState::knight_dirs = {pair<int8_t,int8_t>(-2,-1),
+                                pair<int8_t,int8_t>(-2,1),
+                                pair<int8_t,int8_t>(2,-1),
+                                pair<int8_t,int8_t>(2,1),
+                                pair<int8_t,int8_t>(-1,-2),
+                                pair<int8_t,int8_t>(-1,2),
+                                pair<int8_t,int8_t>(1,-2),
+                                pair<int8_t,int8_t>(1,2)};
+auto ChessState::king_dirs = {pair<int8_t,int8_t>(-1,-1),
+                                pair<int8_t,int8_t>(-1,0),
+                                pair<int8_t,int8_t>(-1,1),
+                                pair<int8_t,int8_t>(0,-1),
+                                pair<int8_t,int8_t>(0,1),
+                                pair<int8_t,int8_t>(1,-1),
+                                pair<int8_t,int8_t>(1,0),
+                                pair<int8_t,int8_t>(1,1)};
+auto ChessState::queen_dirs = {pair<int8_t,int8_t>(-1,-1),
+                                pair<int8_t,int8_t>(-1,0),
+                                pair<int8_t,int8_t>(-1,1),
+                                pair<int8_t,int8_t>(0,-1),
+                                pair<int8_t,int8_t>(0,1),
+                                pair<int8_t,int8_t>(1,-1),
+                                pair<int8_t,int8_t>(1,0),
+                                pair<int8_t,int8_t>(1,1)};
+auto ChessState::bishop_dirs = {pair<int8_t,int8_t>(-1,-1),
+                                pair<int8_t,int8_t>(-1,1),
+                                pair<int8_t,int8_t>(1,-1),
+                                pair<int8_t,int8_t>(1,1)};
+auto ChessState::rook_dirs = {pair<int8_t,int8_t>(-1,0),
+                                pair<int8_t,int8_t>(1,0),
+                                pair<int8_t,int8_t>(0,-1),
+                                pair<int8_t,int8_t>(0,1)};
+auto ChessState::promotions = "NBRQ";
+                                
 int main() {
-    state cstate;
+    ChessState cstate;
     vector<string> moves = {"e4","d5","exd5","c5","dxc6","a5","cxb7","a4","b8=Q+","Nf6","g4","Nxg4","Bc4"};
     cstate.play_moves(moves);
     return 0;
