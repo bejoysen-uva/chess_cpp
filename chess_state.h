@@ -51,11 +51,35 @@ struct minfo { // info for a chess move
 };
 typedef struct minfo minfo;
 
-class ChessState{
+class LazyChessState{
+    public:
+        uint8_t board[SZ][SZ];
+        set<uint8_t> psquares[INV]; // where are the pieces located?
+        bool active; // active player
+        pair<bool,bool> execute_lazy_move(minfo mv); // returns promotion, enpassant to help undoing moves
+        void undo_lazy_move(minfo mv,uint8_t oldp,bool promote=false, bool enpassant=false);
+        bool is_checking(uint8_t sq);
+        bool is_checking(uint8_t sq1, uint8_t sq2);
+    protected:
+        static vector<pair<int8_t,int8_t> > knight_dirs;
+        static vector<pair<int8_t,int8_t> > king_dirs;
+        static vector<pair<int8_t,int8_t> > bishop_dirs;
+        static vector<pair<int8_t,int8_t> > rook_dirs;
+        static vector<pair<int8_t,int8_t> > queen_dirs;
+    private:   
+        bool is_king_checking(uint8_t sq1, uint8_t sq2);
+        bool is_queen_checking(uint8_t sq1, uint8_t sq2);
+        bool is_bishop_checking(uint8_t sq1, uint8_t sq2);
+        bool is_knight_checking(uint8_t sq1, uint8_t sq2);
+        bool is_rook_checking(uint8_t sq1, uint8_t sq2);
+        bool is_pawn_checking(uint8_t sq1, uint8_t sq2); // pawn has unique check and move patterns
+
+        bool is_limited_checking(uint8_t sq1, uint8_t sq2, vector<pair<int8_t,int8_t>>& dirs); // king, knight are limited
+        bool is_unlimited_checking(uint8_t sq1, uint8_t sq2, vector<pair<int8_t,int8_t>>& dirs); // bishop, rook, queen are unlimited
+};
+class ChessState: public LazyChessState {
     public:
         // fields (FEN state + piece-to-square mapping)
-        uint8_t board[SZ][SZ];
-        bool active; // active player
         uint8_t cast; // castling availability
         uint8_t enpassant; // en-passant square, out-of-bounds when not available
         uint32_t hmove;// half-moves since last capture or pawn advance
@@ -65,25 +89,22 @@ class ChessState{
         void print_board();
 
         void execute_move(minfo minfo);
-        void all_moves(vector<minfo>& move_list);
-        void all_moves(uint8_t sq, uint8_t piece, vector<minfo>& move_list);
-
-        static uint8_t map_piece(bool active,char type);
-        static char map_type(uint8_t piece);
+        void all_legal_moves(vector<minfo>& move_list); // appends to move_list
+        void all_moves(vector<minfo>& move_list); 
+        
+        
+    protected:
         static char cols[SZ];
         static char pchars[INV];
         static string promotions;
-        set<uint8_t> psquares[INV]; // where are the pieces located?
-        
+
+        void all_moves(uint8_t sq, uint8_t piece, vector<minfo>& move_list);
+        static uint8_t map_piece(bool active,char type);
+        static char map_type(uint8_t piece);
+
     private:
-        static vector<pair<int8_t,int8_t> > knight_dirs;
-        static vector<pair<int8_t,int8_t> > king_dirs;
-        static vector<pair<int8_t,int8_t> > bishop_dirs;
-        static vector<pair<int8_t,int8_t> > rook_dirs;
-        static vector<pair<int8_t,int8_t> > queen_dirs;
 
         void fill_psquares();
-
         void pawn_moves(uint8_t sq, vector<minfo>& move_list);
         void limited_piece_moves(uint8_t sq, vector<minfo>& move_list, const vector<pair<int8_t,int8_t> >& dirs);
         void unlimited_piece_moves(uint8_t sq, vector<minfo>& move_list, const vector<pair<int8_t,int8_t> >& dirs);

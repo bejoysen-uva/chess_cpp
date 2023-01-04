@@ -2,3 +2,4 @@ chess
 *.dSYM/
 *.o
 .vscode
+.DS_Store

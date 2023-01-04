@@ -68,7 +68,7 @@ minfo ChessInterface::not2minfo(string str) {
         return ((minfo){sq1,sq2,map_piece(active,str[5]),NCAST});
     }
     // handle disambiguation (sometimes only need rank/file, sometimes need both)
-    else if(regex_match(str,regex("^[NBKQ]x?[abcdefgh][0-8]$"))) { // piece moves, maybe captures, no ambiguity
+    else if(regex_match(str,regex("^[NBRKQ]x?[abcdefgh][0-8]$"))) { // piece moves, maybe captures, no ambiguity
         regex_search(str,sm,regex("[abcdefgh][0-8]"));
         uint8_t sq2 = get_sq(sm[0]);
 
@@ -78,7 +78,7 @@ minfo ChessInterface::not2minfo(string str) {
         return ((minfo){sq1,sq2,piece,NCAST});
     }
     // rank disambiguation
-        else if(regex_match(str,regex("^[NBKQ][0-8]x?[abcdefgh][0-8]$"))) { // piece moves, maybe captures, no ambiguity
+        else if(regex_match(str,regex("^[NBRKQ][0-8]x?[abcdefgh][0-8]$"))) {
         regex_search(str,sm,regex("[abcdefgh][0-8]"));
         uint8_t sq2 = get_sq(sm[0]);
 
@@ -89,7 +89,7 @@ minfo ChessInterface::not2minfo(string str) {
         return ((minfo){sq1,sq2,piece,NCAST});
     }
     // file disambiguation
-    else if(regex_match(str,regex("^[NBKQ][abcdefgh]x?[abcdefgh][0-8]$"))) { // piece moves, maybe captures, no ambiguity
+    else if(regex_match(str,regex("^[NBRKQ][abcdefgh]x?[abcdefgh][0-8]$"))) {
         regex_search(str,sm,regex("[abcdefgh][0-8]"));
         uint8_t sq2 = get_sq(sm[0]);
 
@@ -100,7 +100,7 @@ minfo ChessInterface::not2minfo(string str) {
         return ((minfo){sq1,sq2,piece,NCAST});
     }
     // square disambiguation
-    else if(regex_match(str,regex("^[NBKQ][abcdefgh][0-8]x?[abcdefgh][0-8]$"))) { // piece moves, maybe captures, no ambiguity
+    else if(regex_match(str,regex("^[NBRKQ][abcdefgh][0-8]x?[abcdefgh][0-8]$"))) {
         regex_search(str,sm,regex("[abcdefgh][0-8]"));
         uint8_t sq1 = get_sq(sm[0]);
         uint8_t piece = map_piece(active,str[0]);
@@ -482,7 +482,7 @@ void ChessState::execute_move(minfo minfo) {
         uint8_t& psq4 = board[sq4/SZ][SZ-1];
         uint8_t& psq5 = board[sq4/SZ][SZ-3];
         psquares[psq4].erase(sq4);
-        psquares[psq4].insert(sq4+3);
+        psquares[psq4].insert(sq4-2);
 
         psq5 = psq4;
         psq4 = EMP;
@@ -493,7 +493,7 @@ void ChessState::execute_move(minfo minfo) {
     enpassant = next_enpassant;
 }
 // static initialization
-vector<pair<int8_t,int8_t> > ChessState::knight_dirs = {pair<int8_t,int8_t>(-2,-1),
+vector<pair<int8_t,int8_t> > LazyChessState::knight_dirs = {pair<int8_t,int8_t>(-2,-1),
                                 pair<int8_t,int8_t>(-2,1),
                                 pair<int8_t,int8_t>(2,-1),
                                 pair<int8_t,int8_t>(2,1),
@@ -501,7 +501,7 @@ vector<pair<int8_t,int8_t> > ChessState::knight_dirs = {pair<int8_t,int8_t>(-2,-
                                 pair<int8_t,int8_t>(-1,2),
                                 pair<int8_t,int8_t>(1,-2),
                                 pair<int8_t,int8_t>(1,2)};
-vector<pair<int8_t,int8_t> > ChessState::king_dirs = {pair<int8_t,int8_t>(-1,-1),
+vector<pair<int8_t,int8_t> > LazyChessState::king_dirs = {pair<int8_t,int8_t>(-1,-1),
                                 pair<int8_t,int8_t>(-1,0),
                                 pair<int8_t,int8_t>(-1,1),
                                 pair<int8_t,int8_t>(0,-1),
@@ -509,7 +509,7 @@ vector<pair<int8_t,int8_t> > ChessState::king_dirs = {pair<int8_t,int8_t>(-1,-1)
                                 pair<int8_t,int8_t>(1,-1),
                                 pair<int8_t,int8_t>(1,0),
                                 pair<int8_t,int8_t>(1,1)};
-vector<pair<int8_t,int8_t> > ChessState::queen_dirs = {pair<int8_t,int8_t>(-1,-1),
+vector<pair<int8_t,int8_t> > LazyChessState::queen_dirs = {pair<int8_t,int8_t>(-1,-1),
                                 pair<int8_t,int8_t>(-1,0),
                                 pair<int8_t,int8_t>(-1,1),
                                 pair<int8_t,int8_t>(0,-1),
@@ -517,11 +517,11 @@ vector<pair<int8_t,int8_t> > ChessState::queen_dirs = {pair<int8_t,int8_t>(-1,-1
                                 pair<int8_t,int8_t>(1,-1),
                                 pair<int8_t,int8_t>(1,0),
                                 pair<int8_t,int8_t>(1,1)};
-vector<pair<int8_t,int8_t> > ChessState::bishop_dirs = {pair<int8_t,int8_t>(-1,-1),
+vector<pair<int8_t,int8_t> > LazyChessState::bishop_dirs = {pair<int8_t,int8_t>(-1,-1),
                                 pair<int8_t,int8_t>(-1,1),
                                 pair<int8_t,int8_t>(1,-1),
                                 pair<int8_t,int8_t>(1,1)};
-vector<pair<int8_t,int8_t> > ChessState::rook_dirs = {pair<int8_t,int8_t>(-1,0),
+vector<pair<int8_t,int8_t> > LazyChessState::rook_dirs = {pair<int8_t,int8_t>(-1,0),
                                 pair<int8_t,int8_t>(1,0),
                                 pair<int8_t,int8_t>(0,-1),
                                 pair<int8_t,int8_t>(0,1)};
@@ -652,4 +652,214 @@ vector<string> ChessInterface::all_notes() {
         slist.push_back(minfo2not(mi));
     }
     return slist;
+}
+
+pair<bool,bool> LazyChessState::execute_lazy_move(minfo mv) {
+    uint8_t sq1 = mv.sq1;
+    uint8_t sq2 = mv.sq2;
+    uint8_t newp = mv.newp;
+    uint8_t castle = mv.castle;
+    uint8_t& psq1 = board[sq1/SZ][sq1%SZ];
+    uint8_t& psq2 = board[sq2/SZ][sq2%SZ];
+    // castling: move king and rook
+    if(castle!=NCAST) {
+        uint8_t sq3 = (castle==KCAST)? (sq1+2):(sq1-2);
+        uint8_t sq4 = (castle==KCAST) ? (sq1+3):(sq1-4);
+        uint8_t& psq3 = board[sq3/SZ][sq3%SZ];
+        uint8_t& psq4 = board[sq4/SZ][sq4%SZ];
+
+        psquares[psq1].erase(sq1); // king move
+        psquares[newp].insert(sq2);
+        psquares[psq3].erase(sq3); // rook move
+        psquares[psq3].insert(sq4);
+
+        psq1 = EMP; // king move
+        psq2 = newp;
+        psq4 = psq3; // rook move
+        psq3 = EMP;
+        active = NEXT(active);
+        return pair<bool,bool>(false,false);
+    }
+    // enpassant: pawn move where columns are different and target square is empty
+    else if (((psq1==WP)||(psq1==BP))&&(sq1%SZ!=sq2%SZ)&& (psq2==EMP)) {
+        uint8_t sq3 = mv.sq1+2*(mv.sq2-mv.sq1); // captured pawn
+        uint8_t& psq3 = board[sq3/SZ][sq3%SZ];
+        
+        psquares[psq1].erase(sq1);
+        psquares[psq2].erase(sq2);
+        psquares[newp].insert(sq2);
+        psquares[psq3].erase(sq3);
+
+        psq1 = EMP;
+        psq2 = newp;
+        psq3 = EMP;
+        active = NEXT(active);
+        return pair<bool,bool>(false,true);
+    }
+    // normal move or promotion
+    else {
+        bool promote = false;
+        if(psq1!=newp)
+            promote = true;
+        
+        psquares[psq1].erase(sq1);
+        psquares[psq2].erase(sq2);
+        psquares[newp].insert(sq2);
+
+        psq1 = EMP;
+        psq2 = newp;
+        active = NEXT(active);
+        return pair<bool,bool>(promote,false);
+    }
+}
+void LazyChessState::undo_lazy_move(minfo mv,uint8_t oldp,bool promote, bool enpassant) {
+    uint8_t sq1 = mv.sq1;
+    uint8_t sq2 = mv.sq2;
+    uint8_t newp = mv.newp;
+    uint8_t castle = mv.castle;
+    uint8_t& psq1 = board[sq1/SZ][sq1%SZ];
+    uint8_t& psq2 = board[sq2/SZ][sq2%SZ];
+    // undo castling: king and rook
+    if(castle!=NCAST) {
+        uint8_t sq3 = (castle==KCAST)? (sq1+2):(sq1-2);
+        uint8_t sq4 = (castle==KCAST) ? (sq1+3):(sq1-4);
+        uint8_t& psq3 = board[sq3/SZ][sq3%SZ];
+        uint8_t& psq4 = board[sq4/SZ][sq4%SZ];
+
+        psquares[newp].insert(sq1); // king move
+        psquares[newp].erase(sq2);
+        psquares[psq4].insert(sq3); // rook move
+        psquares[psq4].erase(sq4);
+
+        psq1 = newp; // king move
+        psq2 = EMP;
+        psq3 = psq4; // rook move
+        psq4 = EMP;
+    }
+    // undo promotion
+    else if(promote) {
+        uint8_t pawn = (NEXT(active)==WT)?WP:BP; // pawn that moved
+        psquares[newp].erase(sq2);
+        psquares[pawn].insert(sq1);
+        if(oldp!=EMP) // replace captured piece if existed
+            psquares[oldp].insert(sq2);
+        
+        psq1 = pawn;
+        psq2 = oldp;
+    }
+    // undo enpassant: NEED to fix
+    else if (enpassant) {
+        uint8_t sq3 = mv.sq1+2*(mv.sq2-mv.sq1); // captured pawn
+        uint8_t& psq3 = board[sq3/SZ][sq3%SZ];
+        uint8_t pawn = (active==WT)?WP:BP;
+        
+        psquares[newp].erase(sq2);
+        psquares[newp].insert(sq1);
+        psquares[pawn].insert(sq3);
+
+        psq1 = newp;
+        psq2 = EMP;
+        psq3 = pawn;
+    }
+    // normal move
+    else {
+        psquares[newp].erase(sq2);
+        psquares[newp].insert(sq1);
+        if(oldp!=EMP) // replace captured piece if existed
+            psquares[oldp].insert(sq2);
+        
+        psq1 = newp;
+        psq2 = oldp;
+    }
+    active = NEXT(active);
+}
+void ChessState::all_legal_moves(vector<minfo>& lmvlist) {
+    // assumes current position is legal!
+    vector<minfo> mvlist;
+    all_moves(mvlist);
+    LazyChessState backup = *this;
+    for(minfo mv: mvlist) {
+        // ex: active=W, play white's move on backup board
+        pair<bool,bool> mvdata = backup.execute_lazy_move(mv);
+        uint8_t ksq = *backup.psquares[(active==WT) ? WK : BK].begin();
+        if(!backup.is_checking(ksq)) { // white king cannot be in check by black after white has moved
+            if (mv.castle==QCAST) { // white king cannot move through check to castle
+                if(!backup.is_checking(ksq-1)&&!backup.is_checking(ksq-2))
+                    lmvlist.push_back(mv);
+            } else if (mv.castle==KCAST) {
+                if(!backup.is_checking(ksq+1)&&!backup.is_checking(ksq+2))
+                    lmvlist.push_back(mv);
+            } else {
+                lmvlist.push_back(mv);
+            }
+            // undo normal move
+            backup.undo_lazy_move(mv,board[mv.sq1/SZ][mv.sq1%SZ],mvdata.first,mvdata.second);
+        }
+
+    }
+}
+
+
+bool LazyChessState::is_checking(uint8_t sq1, uint8_t sq2) {
+    return false;
+}
+bool LazyChessState::is_checking(uint8_t sq) {
+    return false;
+}
+bool LazyChessState::is_pawn_checking(uint8_t sq1, uint8_t sq2) {
+    // is pawn on sq1 checking sq2? pawn must be the same color as the active player
+
+    // adjacent column. white r1 = r2+1 OR black r1 = r2-1.
+    return ((abs(sq1%SZ-sq2%SZ)==1)&&((active==WT)&&(sq1/SZ-sq2/SZ == 1))&&((active==BT)&&(sq2/SZ-sq1/SZ == 1)));
+}
+
+bool LazyChessState::is_limited_checking(uint8_t sq1, uint8_t sq2,vector<pair<int8_t,int8_t>>& dirs) {
+    // ex: can a knight move on sq1 move to sq2?
+    uint8_t r1 = sq1/SZ;
+    uint8_t c1 = sq1%SZ;
+    uint8_t r2 = sq2/SZ;
+    uint8_t c2 = sq2%SZ;
+    for(pair<int8_t,int8_t> dir: dirs) {
+        if((r1+dir.first==r2)&&(c1+dir.second==c2))
+            return true;        
+    }
+    return false;
+}
+bool LazyChessState::is_knight_checking(uint8_t sq1, uint8_t sq2) {
+    return is_limited_checking(sq1,sq2,knight_dirs);
+}
+bool LazyChessState::is_king_checking(uint8_t sq1, uint8_t sq2) {
+    return is_limited_checking(sq1,sq2,king_dirs);
+}
+
+bool LazyChessState::is_unlimited_checking(uint8_t sq1, uint8_t sq2,vector<pair<int8_t,int8_t>>& dirs) {
+    // ex: bishop, go along each diagonal until sq2 or non-empty. if sq2==sq3 return true
+    uint8_t r1 = sq1/SZ;
+    uint8_t c1 = sq1%SZ;
+    uint8_t r2 = sq2/SZ;
+    uint8_t c2 = sq2%SZ;
+    uint8_t r3;
+    uint8_t c3;
+    for(pair<int8_t,int8_t> dir: dirs) {
+        r3 = r1+dir.first; // move forward
+        c3 = c1+dir.second;
+        // continue moving forward until sq2 or non-empty
+        while(!((r2==r3)&&(c2==c3))&&(ELEM(board,r3,c3)==EMP)) {
+            r3+=dir.first;
+            c3+=dir.second;
+        }
+        if((r2==r3)&&(c2==c3)) // sq1 can capture sq2!
+            return true;
+    }
+    return false;
+}
+
+bool LazyChessState::is_bishop_checking(uint8_t sq1, uint8_t sq2) {
+    return is_limited_checking(sq1,sq2,bishop_dirs);
+}
+bool LazyChessState::is_rook_checking(uint8_t sq1, uint8_t sq2) {
+    return is_limited_checking(sq1,sq2,rook_dirs);
+}
+bool LazyChessState::is_queen_checking(uint8_t sq1, uint8_t sq2) {
+    return is_limited_checking(sq1,sq2,queen_dirs);
 }
