@@ -1,4 +1,4 @@
-#include "chess_state.h"
+#include "chess_interface.h"
 int main() {
     ChessInterface cgame;
     vector<string> moves = {"e4","e5",
