@@ -51,13 +51,23 @@ struct minfo { // info for a chess move
 };
 typedef struct minfo minfo;
 
-class LazyChessState{
+class ChessState {
     public:
+        // FEN data
         uint8_t board[SZ][SZ];
         set<uint8_t> psquares[INV]; // where are the pieces located?
+        uint8_t cast; // castling availability
+        uint8_t enpassant; // en-passant square, out-of-bounds when not available
+        uint32_t hmove;// half-moves since last capture or pawn advance
+        uint32_t fmove; // full-move clock
         bool active; // active player
-        pair<bool,bool> execute_lazy_move(minfo mv); // returns promotion, enpassant to help undoing moves
-        void undo_lazy_move(minfo mv,uint8_t oldp,bool promote=false, bool enpassant=false);
+        // NEED 3-move repetition data (previous state hashes since hmove reset)
+
+        ChessState(); // constructor
+        void print_board();
+        void execute_move(minfo minfo);
+        void undo_move(const ChessState& original,minfo minfo);
+        void all_legal_moves(vector<minfo>& move_list); // appends to move_list
         bool is_checking(uint8_t sq);
         bool is_checking(uint8_t sq1, uint8_t sq2);
     protected:
@@ -66,6 +76,16 @@ class LazyChessState{
         static vector<pair<int8_t,int8_t> > bishop_dirs;
         static vector<pair<int8_t,int8_t> > rook_dirs;
         static vector<pair<int8_t,int8_t> > queen_dirs;
+
+        static uint8_t map_piece(bool active,char type);
+        static char map_type(uint8_t piece);
+        static char cols[SZ];
+        static char pchars[INV];
+        static string promotions;
+
+        void all_moves(uint8_t sq, uint8_t piece, vector<minfo>& move_list);
+        void all_moves(vector<minfo>& move_list);
+
     private:   
         bool is_king_checking(uint8_t sq1, uint8_t sq2);
         bool is_queen_checking(uint8_t sq1, uint8_t sq2);
@@ -76,33 +96,6 @@ class LazyChessState{
 
         bool is_limited_checking(uint8_t sq1, uint8_t sq2, vector<pair<int8_t,int8_t>>& dirs); // king, knight are limited
         bool is_unlimited_checking(uint8_t sq1, uint8_t sq2, vector<pair<int8_t,int8_t>>& dirs); // bishop, rook, queen are unlimited
-};
-class ChessState: public LazyChessState {
-    public:
-        // fields (FEN state + piece-to-square mapping)
-        uint8_t cast; // castling availability
-        uint8_t enpassant; // en-passant square, out-of-bounds when not available
-        uint32_t hmove;// half-moves since last capture or pawn advance
-        uint32_t fmove; // full-move clock
-
-        ChessState(); // constructor
-        void print_board();
-
-        void execute_move(minfo minfo);
-        void all_legal_moves(vector<minfo>& move_list); // appends to move_list
-        void all_moves(vector<minfo>& move_list); 
-        
-        
-    protected:
-        static char cols[SZ];
-        static char pchars[INV];
-        static string promotions;
-
-        void all_moves(uint8_t sq, uint8_t piece, vector<minfo>& move_list);
-        static uint8_t map_piece(bool active,char type);
-        static char map_type(uint8_t piece);
-
-    private:
 
         void fill_psquares();
         void pawn_moves(uint8_t sq, vector<minfo>& move_list);
@@ -115,5 +108,4 @@ class ChessState: public LazyChessState {
         void bishop_moves(uint8_t sq,vector<minfo>& move_list);
         void rook_moves(uint8_t sq,vector<minfo>& move_list);
         void queen_moves(uint8_t sq,vector<minfo>& move_list);
-        
 };

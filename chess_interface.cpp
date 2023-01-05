@@ -1,13 +1,21 @@
 #include "chess_interface.h"
 #include <sstream>
-void ChessInterface::move(string str) {
-    execute_move(not2minfo(str));
+
+ChessInterface::ChessInterface() {
+    not2move = {};
+    generate_notes();
+}
+void ChessInterface::move(minfo mv) {
+    execute_move(mv);
+    generate_notes();
 }
 void ChessInterface::play_moves(vector<string> moves, bool verbose) {
     for(string str: moves) {
         if ((active==WT)&&verbose)
             cout << fmove << endl;
-        move(str);
+        if(not2move.count(str)==0)
+            throw invalid_argument("Not in the move list");
+        move(not2move[str]);
         if(verbose) {
             print_board();
             cout << endl;
@@ -147,14 +155,12 @@ bool ChessInterface::one_play_input(int8_t verbose) {
         print_board();
         cout << endl;
     }
-    // NEED code for notation->minfo to check whether user-input move is valid
     if(verbose==2) {
-        vector<string> nlist = all_notes();
         cout << "All moves: [";
-        for(int idx=0;idx<nlist.size();idx++) {
-            cout << nlist[idx] << ((idx==nlist.size()-1)?']':',');
+        for(auto it = not2move.begin(); it!=not2move.end(); it++) {
+            cout << (it==not2move.begin() ? "":",") << it->first;
         }
-        cout << endl;
+        cout << "]" << endl;
     }
     string anot;
     cout << "Move: ";
@@ -163,7 +169,8 @@ bool ChessInterface::one_play_input(int8_t verbose) {
     
     if(anot=="q")
         return false;
-    move(anot);
+    if(not2move.count(anot))
+        move(not2move[anot]);
     return true;
 }
 void ChessInterface::play_input(int8_t verbose) {
@@ -239,12 +246,114 @@ string ChessInterface::minfo2not(minfo minf) {
     return note.str();
 }
 
-vector<string> ChessInterface::all_notes() {
+void ChessInterface::generate_notes() {
+    not2move.clear();
     vector<minfo> mlist;
-    vector<string> slist;
-    all_moves(mlist);
-    for(minfo mi: mlist) {
-        slist.push_back(minfo2not(mi));
+    all_legal_moves(mlist);
+    // p2minfo for disambiguation: if multiple white knights are going to sq2, then map[WN<<8+sq2] contains both their starting squares.
+    map<uint16_t,vector<uint8_t>> p2minfo;
+    for(minfo minf: mlist) { // for disambiguation
+        uint8_t psq1 = board[minf.sq1/SZ][minf.sq1%SZ];
+        p2minfo[(psq1<<8) + minf.sq2].push_back(minf.sq1);
     }
-    return slist;
+    stringstream note;
+    ChessState backup = *this;
+    for(minfo minf: mlist) {
+        note.str("");
+
+        uint8_t r1 = minf.sq1/SZ;
+        uint8_t c1 = minf.sq1%SZ;
+        uint8_t r2 = minf.sq2/SZ;
+        uint8_t c2 = minf.sq2%SZ;
+        uint8_t psq1 = board[r1][c1];
+        uint8_t psq2 = board[r2][c2];
+
+        // castling
+        if((minf.castle)==KCAST)
+            note << "O-O";
+        else if((minf.castle)==QCAST)
+            note << "O-O-O";
+        // pawn moves
+        else if((psq1==WP)||(psq1==BP)) {
+            if(c1==c2) {
+                // pawn moves forward, does not promote (d6,e4)
+                if(psq1==minf.newp)
+                    note << cols[c2] << int(SZ-r2);
+                // pawn moves forward, promotes (e8=Q)
+                else
+                    note << cols[c2] << int(SZ-r2) << "=" << map_type(minf.newp);
+            } else {
+                // pawn captures (exd5), en passant included
+                if(psq1==minf.newp)
+                    note << cols[c1] << "x" << cols[c2] << int(SZ-r2);
+                // pawn moves forward, promotes (e8=Q)
+                else {
+                    note << cols[c1] << "x" << cols[c2] << int(SZ-r2) << "=" << map_type(minf.newp);
+                }
+            }
+        } 
+        // any other piece (NBRQK)
+        else {
+            // piece name
+            note << map_type(psq1);
+            const auto& other_sqs = p2minfo[(psq1<<8)+minf.sq2];
+            // disambiguation
+            if(other_sqs.size()>1) {
+                bool cols_differ = true;
+                bool rows_differ = true;
+                for(uint8_t sq3: other_sqs) {
+                    if(sq3==minf.sq1)
+                        continue;
+                    else if(sq3%SZ==c1)
+                        cols_differ = false;
+                    else if(sq3/SZ==r1)
+                        rows_differ = false;
+                }
+                if(cols_differ)
+                    note << cols[c1];
+                else if(rows_differ)
+                    note << int(SZ-r1);
+                else
+                    note << cols[c1] << int(SZ-r1);
+            }
+            // capture
+            if(psq2!=EMP)
+                note << "x";
+            // square: e.g. f3
+            note << cols[c2] << int(SZ-r2);
+        }
+        // markers: +(check) or #(checkmate)
+        // e.g. white moves, did they check/checkmate black?
+        backup.execute_move(minf); // white -> black
+        uint8_t ksq = *backup.psquares[(active==WT)?BK:WK].begin();
+        // check: could white capture black king if they moved again?
+        backup.active=NEXT(backup.active); // black -> white
+        if(backup.is_checking(ksq)) {
+            backup.active = active; // white -> black
+
+            vector<minfo> mlist2 = {};
+            backup.all_legal_moves(mlist2);
+
+            bool checkmate = true;
+            for(minfo mv2: mlist2) {
+                ChessState backup2 = backup;
+                backup2.execute_move(mv2); // black->white
+                ksq = *backup2.psquares[(active==WT)?BK:WK].begin();
+                if(!backup2.is_checking(ksq)) {
+                    checkmate = false;
+                    backup2.undo_move(backup,mv2);
+                    break;
+                } else
+                    backup.undo_move(backup,mv2);
+            }
+            if(checkmate)
+                note << "#";
+            else
+                note << "+";
+        }
+
+        backup.undo_move(*this,minf);
+
+        not2move[note.str()] = minf;
+    }
 }
