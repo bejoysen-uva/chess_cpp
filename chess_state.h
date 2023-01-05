@@ -67,9 +67,11 @@ class ChessState {
         void print_board();
         void execute_move(minfo minfo);
         void undo_move(const ChessState& original,minfo minfo);
+        void all_moves(vector<minfo>& move_list); // including those that put king in/through check
         void all_legal_moves(vector<minfo>& move_list); // appends to move_list
         bool is_checking(uint8_t sq);
         bool is_checking(uint8_t sq1, uint8_t sq2);
+
     protected:
         static vector<pair<int8_t,int8_t> > knight_dirs;
         static vector<pair<int8_t,int8_t> > king_dirs;
@@ -84,7 +86,6 @@ class ChessState {
         static string promotions;
 
         void all_moves(uint8_t sq, uint8_t piece, vector<minfo>& move_list);
-        void all_moves(vector<minfo>& move_list);
 
     private:   
         bool is_king_checking(uint8_t sq1, uint8_t sq2);

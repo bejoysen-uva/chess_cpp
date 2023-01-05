@@ -327,12 +327,13 @@ void ChessInterface::generate_notes() {
         backup.execute_move(minf); // white -> black
         uint8_t ksq = *backup.psquares[(active==WT)?BK:WK].begin();
         // check: could white capture black king if they moved again?
-        backup.active=NEXT(backup.active); // black -> white
-        if(backup.is_checking(ksq)) {
-            backup.active = active; // white -> black
+        backup.active=active; // black -> white
+        if(backup.is_checking(ksq)) { 
+            // can black move to block check?
+            backup.active = NEXT(active); // white -> black
 
             vector<minfo> mlist2 = {};
-            backup.all_legal_moves(mlist2);
+            backup.all_moves(mlist2);
 
             bool checkmate = true;
             for(minfo mv2: mlist2) {
@@ -344,14 +345,13 @@ void ChessInterface::generate_notes() {
                     backup2.undo_move(backup,mv2);
                     break;
                 } else
-                    backup.undo_move(backup,mv2);
+                    backup2.undo_move(backup,mv2);
             }
             if(checkmate)
                 note << "#";
             else
                 note << "+";
         }
-
         backup.undo_move(*this,minf);
 
         not2move[note.str()] = minf;
