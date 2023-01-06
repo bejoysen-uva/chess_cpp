@@ -1,5 +1,99 @@
 #include "chess_state.h"
+#include <sstream>
 
+ChessState::ChessState(const string& fen) {
+    // board
+    uint8_t crow = 0;
+    uint8_t ccol = 0;
+    auto it = fen.begin();
+    for(;crow<SZ;it++) {
+        if(*it=='/'||*it==' ') {
+            crow+=1;
+            ccol=0;
+        } else if(isdigit(*it)) {
+            for(uint8_t j=0; j<*it-'0';j++)
+                board[crow][ccol++] = EMP;
+        } else
+            board[crow][ccol++] = char2p[*it];//wrong
+    }
+
+    active = (*(it++)=='w')?WT:BT;
+    it++; // skip over space
+
+    cast = (*(it++)=='K') ? (1<<WKCAST) : 0;
+    if(*(it++)=='Q') cast |= 1<<WQCAST;
+    if(*(it++)=='k') cast |= 1<<BKCAST;
+    if(*(it++)=='q') cast |= 1<<BQCAST;
+    it++; // skip over space
+
+    char ch = *(it++);
+    if(ch=='-')
+        enpassant = SZ*SZ;
+    else
+        enpassant = (SZ-(*(it++)-'0'))*SZ+char2col[ch]; // row and col
+    
+
+    hmove = 0;
+    ch = *(++it);
+    while(ch!=' ') {
+        hmove += 10*hmove+(ch-'0');
+        ch = *(++it);
+    }
+    
+    // ch == ' ', it points to ch
+    it++;
+    fmove = 0;
+    while(it!=fen.end())
+        fmove += 10*fmove+(*(it++)-'0');
+
+
+    // psquares
+    for(int i=0; i<INV; i++) {
+        psquares[i] = set<uint8_t>();
+    }
+    fill_psquares();
+}
+string ChessState::get_FEN() {
+    stringstream ss;
+    uint8_t cnt; // number of empty squares consecutively in a row
+    uint8_t psq;
+
+    // board
+    for(uint8_t i=0; i<SZ; i++) {
+        cnt = 0;
+        for(uint8_t j=0;j<SZ;j++) {
+            psq = board[i][j];
+            if(psq==EMP)
+                cnt+=1;
+            else {
+                if(cnt!=0) {
+                    ss << (int) cnt;
+                }
+                cnt = 0;
+                ss << pchars[psq];
+            }
+        }
+        if(cnt!=0) {
+            ss << (int) cnt; // how many empty squares?
+        }
+        ss << ((i==SZ-1)?' ':'/');
+    }
+    // w/b turn
+    ss << ((active==WT)?'w':'b') << ' ';
+    // castling availability
+    ss << (((cast>>WKCAST)%2==1)?'K':'-')
+        << (((cast>>WQCAST)%2==1)?'Q':'-')
+        << (((cast>>BKCAST)%2==1)?'k':'-')
+        << (((cast>>BQCAST)%2==1)?'q':'-');
+    ss << ' ';
+    // enpassant
+    if(enpassant<SZ*SZ)
+        ss << cols[enpassant%8] << int(SZ-enpassant/8);
+    else
+        ss << '-';
+    ss << ' ' << hmove << ' ' << fmove;
+    return ss.str();
+}
 ChessState::ChessState() {
     uint8_t dboard[8][8] = {
                     {BR,BN,BB,BQ,BK,BB,BN,BR},
@@ -10,16 +104,16 @@ ChessState::ChessState() {
                     {EMP,EMP,EMP,EMP,EMP,EMP,EMP,EMP},
                     {WP,WP,WP,WP,WP,WP,WP,WP},
                     {WR,WN,WB,WQ,WK,WB,WN,WR}};
-            memcpy(board,dboard,SZ*SZ*sizeof(uint8_t));
-            active = WT;
-            cast = (1<<WKCAST) | (1<<WQCAST) | (1<<BKCAST) | (1<<BQCAST);
-            enpassant = SZ*SZ;
-            hmove = 0;
-            fmove = 1;
+    memcpy(board,dboard,SZ*SZ*sizeof(uint8_t));
+    active = WT;
+    cast = (1<<WKCAST) | (1<<WQCAST) | (1<<BKCAST) | (1<<BQCAST);
+    enpassant = SZ*SZ;
+    hmove = 0;
+    fmove = 1;
 
-            for(int i=0; i<INV; i++) {
-                psquares[i] = set<uint8_t>();
-            }
+    for(int i=0; i<INV; i++) {
+        psquares[i] = set<uint8_t>();
+    }
     fill_psquares();
 }
 
@@ -442,6 +536,23 @@ char ChessState::pchars[INV] = {[EMP]=' ',
                   [BB]='b',
                   [BQ]='q',
                   [BK]='k'}; // piece characters
+
+
+map<char,uint8_t> ChessState::char2p = {};
+map<char,uint8_t> ChessState::char2col = {};
+
+bool ChessState::char2p_filled = ChessState::fill_maps();
+
+bool ChessState::fill_maps() {
+    for(int i=0; i<INV; i++) {
+        char2p[pchars[i]] = i;
+    }
+    for(int i=0; i<SZ; i++) {
+        char2col[cols[i]] = i;
+    }
+    return true;
+}
+
 char ChessState::cols[SZ] = {'a','b','c','d','e','f','g','h'};
 
 void ChessState::all_legal_moves(vector<minfo>& lmvlist) {

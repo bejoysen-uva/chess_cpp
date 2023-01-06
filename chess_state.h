@@ -2,6 +2,7 @@
 #include <string>
 #include <regex>
 #include <set>
+#include <map>
 
 #define SZ 8 // 8x8 board
 #define EMP 0 // empty square (no piece), minimum piece value must be EMP+1
@@ -64,6 +65,8 @@ class ChessState {
         // NEED 3-move repetition data (previous state hashes since hmove reset)
 
         ChessState(); // constructor
+        ChessState(const string& fen);
+        string get_FEN();
         void print_board();
         void execute_move(minfo minfo);
         void undo_move(const ChessState& original,minfo minfo);
@@ -83,6 +86,8 @@ class ChessState {
         static char map_type(uint8_t piece);
         static char cols[SZ];
         static char pchars[INV];
+        static map<char,uint8_t> char2p; // reverse of pchars
+        static map<char,uint8_t> char2col;
         static string promotions;
 
         void all_moves(uint8_t sq, uint8_t piece, vector<minfo>& move_list);
@@ -109,4 +114,7 @@ class ChessState {
         void bishop_moves(uint8_t sq,vector<minfo>& move_list);
         void rook_moves(uint8_t sq,vector<minfo>& move_list);
         void queen_moves(uint8_t sq,vector<minfo>& move_list);
+
+        static bool char2p_filled;
+        static bool fill_maps();
 };
