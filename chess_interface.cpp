@@ -3,10 +3,14 @@
 
 ChessInterface::ChessInterface() {
     not2move = {};
+    copy1 = *this;
+    copy2 = *this;
     generate_notes();
 }
 void ChessInterface::move(minfo mv) {
     execute_move(mv);
+    copy1.execute_move(mv);
+    copy2.execute_move(mv);
     generate_notes();
 }
 void ChessInterface::play_moves(vector<string> moves, bool verbose) {
@@ -75,7 +79,6 @@ void ChessInterface::generate_notes() {
         p2minfo[(psq1<<8) + minf.sq2].push_back(minf.sq1);
     }
     stringstream note;
-    ChessState backup = *this;
     for(minfo minf: mlist) {
         note.str("");
 
@@ -142,35 +145,39 @@ void ChessInterface::generate_notes() {
         }
         // markers: +(check) or #(checkmate)
         // e.g. white moves, did they check/checkmate black?
-        backup.execute_move(minf); // white -> black
-        uint8_t ksq = *backup.psquares[(active==WT)?BK:WK].begin();
+        copy1.execute_move(minf); // white -> black
+        uint8_t ksq = *copy1.psquares[(active==WT)?BK:WK].begin();
         // check: could white capture black king if they moved again?
-        backup.active=active; // black -> white
-        if(backup.is_checking(ksq)) { 
+        copy1.active=active; // black -> white
+        if(copy1.is_checking(ksq)) { 
             // can black move to block check?
-            backup.active = NEXT(active); // white -> black
+            copy1.active = NEXT(active); // white -> black
 
             vector<minfo> mlist2 = {};
-            backup.all_moves(mlist2);
+            copy1.all_moves(mlist2);
+
+            copy2.execute_move(minf);
 
             bool checkmate = true;
             for(minfo mv2: mlist2) {
-                ChessState backup2 = backup;
-                backup2.execute_move(mv2); // black->white
-                ksq = *backup2.psquares[(active==WT)?BK:WK].begin();
-                if(!backup2.is_checking(ksq)) {
+                copy2.execute_move(mv2); // black->white
+                ksq = *copy2.psquares[(active==WT)?BK:WK].begin();
+                if(!copy2.is_checking(ksq)) {
                     checkmate = false;
-                    backup2.undo_move(backup,mv2);
+                    copy2.undo_move(copy1,mv2);
                     break;
                 } else
-                    backup2.undo_move(backup,mv2);
+                    copy2.undo_move(copy1,mv2);
             }
+
+            copy2.undo_move(*this,minf);
+
             if(checkmate)
                 note << "#";
             else
                 note << "+";
         }
-        backup.undo_move(*this,minf);
+        copy1.undo_move(*this,minf);
 
         not2move[note.str()] = minf;
     }
