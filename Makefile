@@ -1,5 +1,5 @@
 CXX = clang++
-CXXFLAGS = -std=c++11 -Wall -O3
+CXXFLAGS = -std=c++11 -Wall -g
 TARGET = chess
 
 all: $(TARGET)

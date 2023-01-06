@@ -311,7 +311,7 @@ void ChessState::qcast_moves(uint8_t sq, vector<minfo>& move_list) {
 }
 void ChessState::kcast_moves(uint8_t sq, vector<minfo>& move_list) {
     // does not check if castling puts king through/in check
-    if(!(((active==WT)&&((cast>>WQCAST)%2))||((active==BT)&&((cast>>BQCAST)%2))))
+    if(!(((active==WT)&&((cast>>WKCAST)%2))||((active==BT)&&((cast>>BKCAST)%2))))
         return;
     uint8_t r = sq/SZ;
     uint8_t c = sq%SZ;
