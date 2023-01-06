@@ -154,25 +154,13 @@ void ChessInterface::generate_notes() {
             copy1.active = NEXT(active); // white -> black
 
             vector<minfo> mlist2 = {};
-            copy1.all_moves(mlist2);
 
             copy2.execute_move(minf);
-
-            bool checkmate = true;
-            for(minfo mv2: mlist2) {
-                copy2.execute_move(mv2); // black->white
-                ksq = *copy2.psquares[(active==WT)?BK:WK].begin();
-                if(!copy2.is_checking(ksq)) {
-                    checkmate = false;
-                    copy2.undo_move(copy1,mv2);
-                    break;
-                } else
-                    copy2.undo_move(copy1,mv2);
-            }
-
+            copy1.all_legal_moves(mlist2,&copy2);
             copy2.undo_move(*this,minf);
 
-            if(checkmate)
+            // checkmate occurs if 
+            if(mlist.size()==0)
                 note << "#";
             else
                 note << "+";
