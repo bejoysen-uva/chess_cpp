@@ -71,7 +71,7 @@ void ChessInterface::play_input(int8_t verbose) {
 void ChessInterface::generate_notes() {
     not2move.clear();
     vector<minfo> mlist;
-    all_legal_moves(mlist);
+    all_legal_moves(mlist,&copy1);
     // p2minfo for disambiguation: if multiple white knights are going to sq2, then map[WN<<8+sq2] contains both their starting squares.
     map<uint16_t,vector<uint8_t>> p2minfo;
     for(minfo minf: mlist) { // for disambiguation

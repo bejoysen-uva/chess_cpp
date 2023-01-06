@@ -555,31 +555,42 @@ bool ChessState::fill_maps() {
 
 char ChessState::cols[SZ] = {'a','b','c','d','e','f','g','h'};
 
-void ChessState::all_legal_moves(vector<minfo>& lmvlist) {
+void ChessState::all_legal_moves(vector<minfo>& lmvlist,ChessState* backup) {
     // assumes current position is legal!
     vector<minfo> mvlist;
     all_moves(mvlist);
-    ChessState backup = *this;
+
+    // ChessInterface has its own backup boards that it updates after every move. 
+    // Otherwise, we have to dynamically allocate our own backup board
+    // to determine whether a move will put the king in check.
+    bool cleanup = false;
+    if(backup==NULL) {
+        backup =  new ChessState(*this);
+        cleanup = true;
+    }
+
     for(minfo mv: mvlist) {
         // ex: active=W, play white's move on backup board
-        backup.execute_move(mv);
-        uint8_t ksq = *backup.psquares[(active==WT) ? WK : BK].begin();
-        if(!backup.is_checking(ksq)) { // white king cannot be in check by black after white has moved
+        backup->execute_move(mv);
+        uint8_t ksq = *backup->psquares[(active==WT) ? WK : BK].begin();
+        if(!backup->is_checking(ksq)) { // white king cannot be in check by black after white has moved
             if (mv.castle==QCAST) { // white king cannot move through check to castle
-                if(!backup.is_checking(ksq+1)&&!backup.is_checking(ksq+2))
+                if(!backup->is_checking(ksq+1)&&!backup->is_checking(ksq+2))
                     lmvlist.push_back(mv);
             } else if (mv.castle==KCAST) {
-                if(!backup.is_checking(ksq-1)&&!backup.is_checking(ksq-2))
+                if(!backup->is_checking(ksq-1)&&!backup->is_checking(ksq-2))
                     lmvlist.push_back(mv);
             } else {
                 lmvlist.push_back(mv);
             }
         }
         // undo normal move
-        backup.undo_move(*this,mv);
+        backup->undo_move(*this,mv);
     }
+    // delete the backup if we dynamically allocated it
+    if(cleanup)
+        delete backup;
 }
-
 
 bool ChessState::is_checking(uint8_t sq1, uint8_t sq2) {
     switch(map_type(board[sq1/SZ][sq1%SZ])) {

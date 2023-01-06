@@ -71,7 +71,7 @@ class ChessState {
         void execute_move(minfo minfo);
         void undo_move(const ChessState& original,minfo minfo);
         void all_moves(vector<minfo>& move_list); // including those that put king in/through check
-        void all_legal_moves(vector<minfo>& move_list); // appends to move_list
+        void all_legal_moves(vector<minfo>& move_list,ChessState* backup=NULL); // appends to move_list
         bool is_checking(uint8_t sq);
         bool is_checking(uint8_t sq1, uint8_t sq2);
 
