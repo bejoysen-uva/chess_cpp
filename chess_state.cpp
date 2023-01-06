@@ -566,10 +566,10 @@ void ChessState::all_legal_moves(vector<minfo>& lmvlist) {
         uint8_t ksq = *backup.psquares[(active==WT) ? WK : BK].begin();
         if(!backup.is_checking(ksq)) { // white king cannot be in check by black after white has moved
             if (mv.castle==QCAST) { // white king cannot move through check to castle
-                if(!backup.is_checking(ksq-1)&&!backup.is_checking(ksq-2))
+                if(!backup.is_checking(ksq+1)&&!backup.is_checking(ksq+2))
                     lmvlist.push_back(mv);
             } else if (mv.castle==KCAST) {
-                if(!backup.is_checking(ksq+1)&&!backup.is_checking(ksq+2))
+                if(!backup.is_checking(ksq-1)&&!backup.is_checking(ksq-2))
                     lmvlist.push_back(mv);
             } else {
                 lmvlist.push_back(mv);
@@ -614,7 +614,7 @@ bool ChessState::is_pawn_checking(uint8_t sq1, uint8_t sq2) {
     // is pawn on sq1 checking sq2? pawn must be the same color as the active player
 
     // adjacent column. white r1 = r2+1 OR black r1 = r2-1.
-    return ((abs(sq1%SZ-sq2%SZ)==1)&&((active==WT)&&(sq1/SZ-sq2/SZ == 1))&&((active==BT)&&(sq2/SZ-sq1/SZ == 1)));
+    return (abs(sq1%SZ-sq2%SZ)==1)&&(((active==WT)&&(sq1/SZ-sq2/SZ == 1))||((active==BT)&&(sq2/SZ-sq1/SZ == 1)));
 }
 
 bool ChessState::is_limited_checking(uint8_t sq1, uint8_t sq2,vector<pair<int8_t,int8_t>>& dirs) {

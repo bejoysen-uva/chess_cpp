@@ -14,7 +14,8 @@ void ChessInterface::play_moves(vector<string> moves, bool verbose) {
         if ((active==WT)&&verbose)
             cout << fmove << endl;
         if(not2move.count(str)==0)
-            throw invalid_argument("Not in the move list");
+            throw invalid_argument(str+" not in the move list");
+        cout << "playing " << str << endl;
         move(not2move[str]);
         if(verbose) {
             print_board();
@@ -33,7 +34,7 @@ bool ChessInterface::one_play_input(int8_t verbose) {
         print_board();
         cout << endl;
     }
-    
+
     if(verbose==2) {
         cout << "All moves: [";
         for(auto it = not2move.begin(); it!=not2move.end(); it++) {
@@ -48,8 +49,12 @@ bool ChessInterface::one_play_input(int8_t verbose) {
     
     if(anot=="q")
         return false;
-    if(not2move.count(anot))
+    if(not2move.count(anot)) {
         move(not2move[anot]);
+        cout << "playing " << anot << endl;
+    }
+    else
+        throw invalid_argument(anot+" is not in the move dict.");
     return true;
 }
 void ChessInterface::play_input(int8_t verbose) {
