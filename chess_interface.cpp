@@ -148,11 +148,8 @@ void ChessInterface::generate_notes() {
         copy1.execute_move(minf); // white -> black
         uint8_t ksq = *copy1.psquares[(active==WT)?BK:WK].begin();
         // check: could white capture black king if they moved again?
-        copy1.active=active; // black -> white
-        if(copy1.is_checking(ksq)) { 
-            // can black move to block check?
-            copy1.active = NEXT(active); // white -> black
-
+        if(copy1.is_checking(active,ksq)) { 
+            // does black have legal moves
             vector<minfo> mlist2 = {};
 
             copy2.execute_move(minf);

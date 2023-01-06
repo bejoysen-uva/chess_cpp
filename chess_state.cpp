@@ -573,12 +573,12 @@ void ChessState::all_legal_moves(vector<minfo>& lmvlist,ChessState* backup) {
         // ex: active=W, play white's move on backup board
         backup->execute_move(mv);
         uint8_t ksq = *backup->psquares[(active==WT) ? WK : BK].begin();
-        if(!backup->is_checking(ksq)) { // white king cannot be in check by black after white has moved
+        if(!backup->is_checking(backup->active,ksq)) { // white king cannot be in check by black after white has moved
             if (mv.castle==QCAST) { // white king cannot move through check to castle
-                if(!backup->is_checking(ksq+1)&&!backup->is_checking(ksq+2))
+                if(!backup->is_checking(backup->active,ksq+1)&&!backup->is_checking(backup->active,ksq+2))
                     lmvlist.push_back(mv);
             } else if (mv.castle==KCAST) {
-                if(!backup->is_checking(ksq-1)&&!backup->is_checking(ksq-2))
+                if(!backup->is_checking(backup->active,ksq-1)&&!backup->is_checking(backup->active,ksq-2))
                     lmvlist.push_back(mv);
             } else {
                 lmvlist.push_back(mv);
@@ -592,6 +592,35 @@ void ChessState::all_legal_moves(vector<minfo>& lmvlist,ChessState* backup) {
         delete backup;
 }
 
+uint8_t ChessState::get_state(ChessState* backup) {
+    // ChessInterface has its own backup boards that it updates after every move. 
+    // Otherwise, we have to dynamically allocate our own backup board
+    // to determine whether a move will put the king in check.
+    bool cleanup = false;
+    if(backup==NULL) {
+        backup =  new ChessState(*this);
+        cleanup = true;
+    }
+
+    uint8_t ksq = *psquares[(active==WT) ? WK : BK].begin();
+    bool check = is_checking(NEXT(active),ksq);
+    vector<minfo> lmvlist;
+    all_legal_moves(lmvlist,backup);
+    
+    if(cleanup)
+        delete backup; 
+    
+    if(check&&lmvlist.size()==0)
+        return CHECKMATE;
+    else if(check)
+        return CHECK;
+    else if(lmvlist.size()==0)
+        return DRAW;
+    else
+        return NORMAL;
+
+        
+}
 bool ChessState::is_checking(uint8_t sq1, uint8_t sq2) {
     switch(map_type(board[sq1/SZ][sq1%SZ])) {
         case 'P':
@@ -610,9 +639,9 @@ bool ChessState::is_checking(uint8_t sq1, uint8_t sq2) {
             return true;
     }
 }
-bool ChessState::is_checking(uint8_t sq2) {
+bool ChessState::is_checking(bool attacker, uint8_t sq2) {
     for(uint8_t i=EMP+1; i<INV; i++) {
-        if(IS_WHITE(i)!=(active==WT)) // only look at active pieces
+        if(IS_WHITE(i)!=(attacker==WT)) // only look at active pieces
             continue;
         for(uint8_t sq1: psquares[i]) {
             if(is_checking(sq1,sq2))
@@ -622,10 +651,11 @@ bool ChessState::is_checking(uint8_t sq2) {
     return false;
 }
 bool ChessState::is_pawn_checking(uint8_t sq1, uint8_t sq2) {
+    uint8_t attacker = IS_WHITE(board[sq1/SZ][sq1%SZ])?WT:BT;
     // is pawn on sq1 checking sq2? pawn must be the same color as the active player
 
     // adjacent column. white r1 = r2+1 OR black r1 = r2-1.
-    return (abs(sq1%SZ-sq2%SZ)==1)&&(((active==WT)&&(sq1/SZ-sq2/SZ == 1))||((active==BT)&&(sq2/SZ-sq1/SZ == 1)));
+    return (abs(sq1%SZ-sq2%SZ)==1)&&(((attacker==WT)&&(sq1/SZ-sq2/SZ == 1))||((attacker==BT)&&(sq2/SZ-sq1/SZ == 1)));
 }
 
 bool ChessState::is_limited_checking(uint8_t sq1, uint8_t sq2,vector<pair<int8_t,int8_t>>& dirs) {

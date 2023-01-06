@@ -42,6 +42,11 @@
 #define WKSQ (SZ*(SZ-1)+4) // white king starting square
 #define BKSQ 4 // black king starting square
 
+// states: check, checkmate, draw, normal
+#define NORMAL 0
+#define CHECK 1
+#define CHECKMATE 2
+#define DRAW 3
 using namespace std;
 
 struct minfo { // info for a chess move
@@ -72,7 +77,8 @@ class ChessState {
         void undo_move(const ChessState& original,minfo minfo);
         void all_moves(vector<minfo>& move_list); // including those that put king in/through check
         void all_legal_moves(vector<minfo>& move_list,ChessState* backup=NULL); // appends to move_list
-        bool is_checking(uint8_t sq);
+        uint8_t get_state(ChessState* backup=NULL);
+        bool is_checking(bool attacker, uint8_t sq);
         bool is_checking(uint8_t sq1, uint8_t sq2);
 
     protected:
