@@ -157,7 +157,7 @@ void ChessInterface::generate_notes() {
             copy2.undo_move(*this,minf);
 
             // checkmate occurs if 
-            if(mlist.size()==0)
+            if(mlist2.size()==0)
                 note << "#";
             else
                 note << "+";

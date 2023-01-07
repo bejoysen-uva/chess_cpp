@@ -421,13 +421,14 @@ void ChessState::execute_move(minfo minfo) {
     psq1 = EMP; // updates board using reference
     psq2 = newp;
     
-    if (sq2==enpassant) {
+    // enpassant
+    if ((newp==WP||newp==BP)&&sq2==enpassant) {
         // pawn captured  by enpassant has the same row as sq1 and same column as sq2
         uint8_t sq3 = sq1/SZ*SZ+sq2%SZ;
         uint8_t& psq3 = board[sq3/SZ][sq3%SZ];
         psquares[psq3].erase(sq3); // update psquares
         psq3 = EMP; // update board
-    }
+    } // castling
     else if (castle==QCAST){
         uint8_t sq4 = sq1-sq1%SZ; // left-most square is queenside rook
         uint8_t& psq4 = board[sq4/SZ][0];
